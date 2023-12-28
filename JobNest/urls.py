@@ -55,6 +55,7 @@ handler500 = handler500
 # Version 1 URLs
 urlpatterns_v1 = [
     path("auth/", include("apps.core.urls")),
+    path("social_auth/", include("apps.social_auth.urls")),
 ]
 
 urlpatterns = [

@@ -1,7 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.core.validators import validate_email
 from rest_framework import serializers as sr
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from apps.common.validators import validate_phone_number
 
@@ -9,19 +8,8 @@ User = get_user_model()
 
 
 class RegisterSerializer(sr.Serializer):
-    first_name = sr.CharField(default="John")
-    last_name = sr.CharField(default="Doe")
     email = sr.CharField()
-    phone_number = sr.CharField(validators=[validate_phone_number])
     password = sr.CharField(write_only=True)
-
-    @staticmethod
-    def validate_email(value):
-        try:
-            validate_email(value)
-        except sr.ValidationError:
-            raise sr.ValidationError("Invalid email address.")
-        return value
 
 
 class VerifyEmailSerializer(sr.Serializer):
@@ -74,15 +62,15 @@ class ChangeEmailSerializer(sr.Serializer):
         return value
 
 
-class ProfileSerializer(sr.Serializer):
-    user_id = sr.UUIDField(read_only=True, source="user.id")
+class EmployeeProfileSerializer(sr.Serializer):
+    user = sr.HiddenField(default=sr.CurrentUserDefault())
     id = sr.UUIDField(read_only=True)
-    first_name = sr.CharField(source="user.first_name")
-    last_name = sr.CharField(source="user.last_name")
+    full_name = sr.CharField()
+    date_of_birth = sr.DateField()
     email = sr.EmailField(source="user.email", read_only=True)
+    address = sr.CharField()
+    occupation = sr.CharField()
     avatar = sr.ImageField(source="user.avatar")
-    coins_available = sr.IntegerField(source="user.coins_available", read_only=True)
-    phone_number = sr.CharField(validators=[validate_phone_number], source="user.phone_number")
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -95,9 +83,6 @@ class ProfileSerializer(sr.Serializer):
 
     def update(self, instance, validated_data):
         user = instance.user
-        first_name = validated_data.get('first_name')
-        last_name = validated_data.get('last_name')
-        phone_number = validated_data.get('phone_number')
 
         for key, value in validated_data.items():
             if key != 'user':  # Exclude the 'user' field
@@ -114,17 +99,12 @@ class ProfileSerializer(sr.Serializer):
         return instance
 
 
-class AgentProfileSerializer(sr.Serializer):
-    user_id = sr.UUIDField(read_only=True, source="user.id")
+class CompanyProfileSerializer(sr.Serializer):
+    user = sr.HiddenField(default=sr.CurrentUserDefault())
     id = sr.UUIDField(read_only=True)
-    first_name = sr.CharField(source="user.first_name")
-    last_name = sr.CharField(source="user.last_name")
-    avatar = sr.ImageField(source="user.avatar")
+    name = sr.CharField()
     email = sr.EmailField(source="user.email", read_only=True)
-    coins_available = sr.IntegerField(source="user.coins_available", read_only=True)
-    date_of_birth = sr.DateField()
-    phone_number = sr.CharField(validators=[validate_phone_number], source="user.phone_number")
-    occupation = sr.CharField()
+    avatar = sr.ImageField(source="user.avatar")
     address = sr.CharField()
 
     def to_representation(self, instance):
@@ -138,9 +118,6 @@ class AgentProfileSerializer(sr.Serializer):
 
     def update(self, instance, validated_data):
         user = instance.user
-        first_name = validated_data.get('first_name')
-        last_name = validated_data.get('last_name')
-        phone_number = validated_data.get('phone_number')
 
         for key, value in validated_data.items():
             if key != 'user':  # Exclude the 'user' field
@@ -193,3 +170,4 @@ class RequestNewPasswordCodeSerializer(sr.Serializer):
         except sr.ValidationError:
             raise sr.ValidationError("Invalid email address.")
         return value
+

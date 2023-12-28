@@ -19,27 +19,19 @@ class GroupAdmin(BaseGroupAdmin):
 
 class UserAdmin(BaseUserAdmin):
     list_display = (
-        "first_name",
-        "last_name",
-        "phone_number",
-        "coins_available",
         "email",
-        "email_changed",
+        "company",
         "email_verified",
         "is_staff",
         "is_active",
 
     )
     list_display_links = (
-        "first_name",
-        "last_name",
-        "phone_number",
         "email",
     )
     list_filter = (
-        "first_name",
-        "last_name",
         "email",
+        "company"
         "is_staff",
         "is_active",
     )
@@ -50,19 +42,8 @@ class UserAdmin(BaseUserAdmin):
             {
                 "fields": (
                     "email",
-                    "password"
-                )
-            },
-        ),
-        (
-            "Personal Information",
-            {
-                "fields": (
-                    "first_name",
-                    "last_name",
-                    "phone_number",
+                    "password",
                     "avatar",
-                    "coins_available",
                 )
             },
         ),
@@ -70,9 +51,11 @@ class UserAdmin(BaseUserAdmin):
             "Permissions",
             {
                 "fields": (
+                    "google_provider",
                     "is_active",
                     "is_staff",
                     "email_verified",
+                    "company",
                     "groups",
                     "user_permissions"
                 )
@@ -113,77 +96,67 @@ class UserAdmin(BaseUserAdmin):
     ordering = ("email", "first_name", "last_name",)
 
 
-@admin.register(Profile)
-class ProfileAdmin(admin.ModelAdmin):
+@admin.register(EmployeeProfile)
+class EmployeeProfileAdmin(admin.ModelAdmin):
     fieldsets = [
         (
             'Profile Information', {
                 'fields': [
                     "user",
+                    "full_name",
+                    'date_of_birth',
+                    'address',
+                    'occupation',
                 ],
             }
         ),
     ]
     list_display = (
         'full_name',
-        "phone_number",
+        "occupation",
         'created',
         'updated',
     )
     list_per_page = 20
     search_fields = (
         "full_name",
-        "phone_number",
+        "occupation",
     )
 
-    @admin.display(description='Phone number')
-    def phone_number(self, obj):
-        return obj.user.phone_number
 
-
-@admin.register(AgentProfile)
-class AgentProfileAdmin(admin.ModelAdmin):
+@admin.register(CompanyProfile)
+class CompanyProfileAdmin(admin.ModelAdmin):
     fieldsets = [
         (
             'Profile Information', {
                 'fields': [
                     "user",
-                    'date_of_birth',
-                    'occupation',
+                    'name',
+                    'country',
                     'address',
                 ],
             }
         ),
     ]
     list_display = (
-        "full_name",
-        "phone_number",
-        "phone_number",
-        'date_of_birth',
-        'occupation',
+        "name",
+        'country',
         'created',
         'updated',
     )
     list_filter = (
-        'date_of_birth',
-        'occupation',
+        'country',
     )
     list_per_page = 20
     search_fields = (
-        "full_name",
-        "phone_number",
-        'occupation',
+        "name",
+        "country",
         'address',
-        'date_of_birth',
     )
     ordering = (
-        'date_of_birth',
-        'occupation',
+        'name',
+        'country',
     )
-
-    @admin.display(description='Phone number')
-    def phone_number(self, obj):
-        return obj.user.phone_number
 
 
 admin.site.register(User, UserAdmin)

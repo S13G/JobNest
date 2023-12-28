@@ -18,3 +18,4 @@ class ErrorCode:
     FAILED_PAYMENT = "failed_payment"
     INSUFFICIENT_COINS = "insufficient_coins"
     INVALID_DATA_TYPE = "invalid_data_type"
+    OTHER_ERROR = "other_error"

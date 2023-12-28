@@ -11,15 +11,15 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenBlacklistSerializer, \
-    TokenRefreshSerializer
+    TokenRefreshSerializer, TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenBlacklistView, TokenRefreshView
 
 from apps.common.errors import ErrorCode
 from apps.common.exceptions import RequestError
-from apps.common.permissions import IsAuthenticatedAgent, IsAuthenticatedUser
+from apps.common.permissions import IsAuthenticatedEmployee, IsAuthenticatedCompany
 from apps.common.responses import CustomResponse
 from apps.core.emails import send_otp_email
-from apps.core.models import OTPSecret, Profile, AgentProfile
+from apps.core.models import OTPSecret, EmployeeProfile, CompanyProfile
 from apps.core.serializers import *
 from utilities.encryption import decrypt_token_to_profile, encrypt_profile_to_token
 
@@ -27,68 +27,131 @@ User = get_user_model()
 
 # Create your views here.
 
+
 """
-AUTHENTICATION AND OTHER AUTHORIZATION OPTIONS 
+REGISTRATION
 """
 
 
-class RegistrationView(APIView):
+class EmployeeRegistrationView(APIView):
     serializer_class = RegisterSerializer
+    throttle_classes = [UserRateThrottle]
 
     @extend_schema(
-        summary="Register user account",
+        summary="Employee registration",
         description=(
-                "This endpoint allows a user to register a user account. "
-                "Make sure you send 'is_agent' as `true` in your request when you want to create an agent profile. "
-                "If `is_agent` is set to `true`, an agent profile is automatically created. "
-                "Otherwise, a normal user profile is created.\n\n"
-                "**Note:** If the user already has an existing profile, an error message indicating the kind of profile is already in use will be displayed."
-                "**Note: If the user wants to create another kind of account, send the same details including the same entered password details**"
+                """
+                This endpoint allows a user to register an employee account.
+                The request should include the following data:
+                - `email`: The email address.
+                - `password`: The password.
+                """
         ),
         tags=['Registration'],
         responses={
-            status.HTTP_409_CONFLICT: OpenApiResponse(
-                description="You already have an existing account",
-            ),
             status.HTTP_201_CREATED: OpenApiResponse(
-                description="Registered successfully",
+                description="Registration successful, check your email for verification.",
+                response=EmployeeProfileSerializer
+            ),
+            status.HTTP_409_CONFLICT: OpenApiResponse(
+                description="Account already exists and has Employee profile",
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Bad request",
             )
         }
     )
     @transaction.atomic()
     def post(self, request):
-        serializer = self.serializer_class(data=request.data, context={"request": request})
+        serializer = self.serializer_class(data=self.request.data)
         serializer.is_valid(raise_exception=True)
 
-        is_agent = request.data.get('is_agent', False)
-        validated_data = serializer.validated_data
-        validated_data['is_active'] = True
-        email = validated_data['email']
+        email = serializer.validated_data.get('email')
 
-        # Check if user exists
+        if User.objects.filter(email=email).exists():
+            if hasattr(User.objects.get(email=email), 'employee'):
+                profile = 'Employee'
+            else:
+                profile = 'Company'
+
+            raise RequestError(err_code=ErrorCode.ALREADY_EXISTS,
+                               err_msg=f"Account already exists and has ${profile} profile",
+                               status_code=status.HTTP_409_CONFLICT)
+
         try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            # User doesn't exist, so create the requested profile
-            user = User.objects.create_user(**validated_data)
-            profile_model = AgentProfile if is_agent else Profile
-            profile_model.objects.create(user=user)
-            profile_type = "Agent" if is_agent else "Normal"
-            return CustomResponse.success(message=f"{profile_type} profile registered successfully",
-                                          status_code=status.HTTP_201_CREATED)
+            user = User.objects.create_user(**serializer.validated_data)
+            employee_instance = EmployeeProfile.objects.create(user=user)
+        except Exception as e:
+            raise RequestError(err_code=ErrorCode.OTHER_ERROR, err_msg=str(e), status_code=status.HTTP_400_BAD_REQUEST)
 
-        # User exists, so check if the requested profile type already exists for the user
-        profile_model = AgentProfile if is_agent else Profile
-        profile_type = "Agent" if is_agent else "Normal"
+        data = EmployeeProfileSerializer(employee_instance).data
+
+        send_otp_email(user=user, template='email_verification.html')
+        return CustomResponse.success(message="Registration successful, check your email for verification.",
+                                      status_code=status.HTTP_201_CREATED, data=data)
+
+
+class CompanyRegistrationView(APIView):
+    serializer_class = RegisterSerializer
+    throttle_classes = [UserRateThrottle]
+
+    @extend_schema(
+        summary="Company registration",
+        description=(
+                """
+                This endpoint allows a user to register a company account.
+                The request should include the following data:
+                - `email`: The email address.
+                - `password`: The password.
+                """
+        ),
+        tags=['Registration'],
+        responses={
+            status.HTTP_201_CREATED: OpenApiResponse(
+                description="Registration successful, check your email for verification.",
+                response=CompanyProfileSerializer
+            ),
+            status.HTTP_409_CONFLICT: OpenApiResponse(
+                description="Account already exists and has Company profile",
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Bad request",
+            )
+        }
+    )
+    @transaction.atomic()
+    def post(self, request):
+        serializer = self.serializer_class(data=self.request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email = serializer.validated_data.get('email')
+
+        if User.objects.filter(email=email).exists():
+            if hasattr(User.objects.get(email=email), 'employee'):
+                profile = 'Employee'
+            else:
+                profile = 'Company'
+
+            raise RequestError(err_code=ErrorCode.ALREADY_EXISTS,
+                               err_msg=f"Account already exists and has ${profile} profile",
+                               status_code=status.HTTP_409_CONFLICT)
+
         try:
-            profile_model.objects.select_related('user').get(user=user)
-        except profile_model.DoesNotExist:
-            profile_model.objects.create(user=user)
-            return CustomResponse.success(message=f"{profile_type} profile registered successfully",
-                                          status_code=status.HTTP_201_CREATED)
+            user = User.objects.create_user(**serializer.validated_data)
+            company_instance = CompanyProfile.objects.create(user=user)
+        except Exception as e:
+            raise RequestError(err_code=ErrorCode.OTHER_ERROR, err_msg=str(e), status_code=status.HTTP_400_BAD_REQUEST)
 
-        raise RequestError(err_code=ErrorCode.ALREADY_EXISTS, err_msg=f"{profile_type} profile already exists",
-                           status_code=status.HTTP_409_CONFLICT)
+        data = CompanyProfileSerializer(company_instance).data
+
+        send_otp_email(user=user, template='email_verification.html')
+        return CustomResponse.success(message="Registration successful, check your email for verification.",
+                                      status_code=status.HTTP_201_CREATED, data=data)
+
+
+"""
+AUTHENTICATION AND VERIFICATION OPTIONS 
+"""
 
 
 class VerifyEmailView(APIView):
@@ -198,7 +261,7 @@ class ResendEmailVerificationCodeView(APIView):
             raise RequestError(err_code=ErrorCode.VERIFIED_USER, err_msg="Email already verified",
                                status_code=status.HTTP_200_OK)
 
-        send_otp_email(user, email, template="email_verification.html")
+        send_otp_email(user, template="email_verification.html")
         return CustomResponse.success("Verification code sent successfully. Please check your mail")
 
 
@@ -235,7 +298,7 @@ class SendNewEmailVerificationCodeView(APIView):
             raise RequestError(err_code=ErrorCode.ALREADY_EXISTS, err_msg="Account with this email already exists",
                                status_code=status.HTTP_409_CONFLICT)
         else:
-            send_otp_email(self.request.user, email, template="email_change.html")
+            send_otp_email(self.request.user, template="email_change.html")
         return CustomResponse.success("Verification code sent successfully. Please check your mail")
 
 
@@ -294,29 +357,26 @@ class ChangeEmailView(APIView):
                                status_code=status.HTTP_400_BAD_REQUEST)
 
         user.email = new_email
-        user.email_changed = True
         user.save()
         user.otp_secret.delete()
 
         return CustomResponse.success(message="Email changed successfully.")
 
 
-class UserLoginView(TokenObtainPairView):
-    serializer_class = JWTSerializer
+class LoginView(TokenObtainPairView):
+    serializer_class = TokenObtainPairSerializer
     throttle_classes = [AnonRateThrottle]
 
     @extend_schema(
         summary="Login",
         description="""
         This endpoint authenticates a registered and verified user and provides the necessary authentication tokens.
-        Make sure you don't send "is_agent" to this endpoint.
         """,
         request=LoginSerializer,
-        tags=['Profile Authentication'],
+        tags=['Authentication'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 description="Logged in successfully",
-                response=ProfileSerializer,
             ),
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
                 description="Account not active or Invalid credentials",
@@ -340,69 +400,20 @@ class UserLoginView(TokenObtainPairView):
             raise RequestError(err_code=ErrorCode.UNVERIFIED_USER, err_msg="Verify your email first",
                                status_code=status.HTTP_400_BAD_REQUEST)
 
-        user.is_agent = False
-        tokens_response = JWTSerializer.get_token(user)
-        tokens = {"refresh": str(tokens_response), "access": str(tokens_response.access_token)}
+        # Checking the type of profile it is (employee or company) and sending it to frontend
+        if hasattr(User, 'employee_profile'):
+            profile = user.employee_profile
+            profile_serializer = EmployeeProfileSerializer(profile)
+        else:
+            profile = user.company_profile
+            profile_serializer = CompanyProfileSerializer(profile)
 
-        if not Profile.objects.select_related('user').filter(user=user).exists():
-            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="You don't have a normal profile",
-                               status_code=status.HTTP_404_NOT_FOUND)
+        # tokens
+        tokens_response = super().post(request)
+        tokens = {"refresh": tokens_response['refresh'], "access": tokens_response['access']}
 
-        profile_serializer = ProfileSerializer(user.user_profile, context={"request": request})
         response_data = {"tokens": tokens, "profile_data": profile_serializer.data}
-        return CustomResponse.success(message="Normal profile logged in successfully", data=response_data)
-
-
-class AgentLoginView(TokenObtainPairView):
-    serializer_class = AgentProfileSerializer
-    throttle_classes = [AnonRateThrottle]
-
-    @extend_schema(
-        summary="Login",
-        description="""
-        This endpoint authenticates a registered and verified user and provides the necessary authentication tokens.
-        "is_agent" is True by default and it's been sent to the endpoint
-        """,
-        request=LoginSerializer,
-        tags=['Agent Authentication'],
-        responses={
-            status.HTTP_200_OK: OpenApiResponse(
-                description="Logged in successfully",
-                response=ProfileSerializer,
-            ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Account not active or Invalid credentials",
-            ),
-        }
-    )
-    def post(self, request):
-        serializer = LoginSerializer(data=self.request.data)
-        serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
-        email = validated_data["email"]
-        password = validated_data["password"]
-
-        user = authenticate(request, email=email, password=password)
-
-        if not user:
-            raise RequestError(err_code=ErrorCode.INVALID_CREDENTIALS, err_msg="Invalid credentials",
-                               status_code=status.HTTP_400_BAD_REQUEST)
-
-        if not user.email_verified:
-            raise RequestError(err_code=ErrorCode.UNVERIFIED_USER, err_msg="Verify your email first",
-                               status_code=status.HTTP_400_BAD_REQUEST)
-
-        user.is_agent = True
-        tokens_response = JWTSerializer.get_token(user)
-        tokens = {"refresh": str(tokens_response), "access": str(tokens_response.access_token)}
-
-        if not AgentProfile.objects.select_related('user').filter(user=user).exists():
-            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="You don't have an agent profile",
-                               status_code=status.HTTP_404_NOT_FOUND)
-
-        profile_serializer = self.serializer_class(user.agent_profile, context={"request": request})
-        response_data = {"tokens": tokens, "profile_data": profile_serializer.data}
-        return CustomResponse.success(message="Agent profile logged in successfully", data=response_data)
+        return CustomResponse.success(message="Logged in successfully", data=response_data)
 
 
 class LogoutView(TokenBlacklistView):
@@ -499,7 +510,7 @@ class RequestForgotPasswordCodeView(APIView):
             raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Account not found",
                                status_code=status.HTTP_404_NOT_FOUND)
 
-        send_otp_email(user, email, "forgot_password.html")
+        send_otp_email(user, "forgot_password.html")
         return CustomResponse.success(message="Password code sent successfully")
 
 
@@ -651,75 +662,80 @@ class ChangePasswordView(APIView):
 
 
 """
-NORMAL PROFILE
+EMPLOYEE PROFILE
 """
 
 
-class RetrieveUpdateDeleteProfileView(APIView):
-    permission_classes = (IsAuthenticatedUser,)
-    serializer_class = ProfileSerializer
+class RetrieveUpdateDeleteEmployeeProfileView(APIView):
+    permission_classes = (IsAuthenticatedEmployee,)
+    serializer_class = EmployeeProfileSerializer
 
     @extend_schema(
-        summary="Retrieve user profile",
+        summary="Retrieve employee profile",
         description=
         """
-        This endpoint allows a user to retrieve his/her normal profile.
+        This endpoint allows a user to retrieve his/her employee profile.
         """,
-        tags=['Normal Profile'],
+        tags=['Employee Profile'],
         responses={
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
                 description="Provide a profile id"
             ),
             status.HTTP_200_OK: OpenApiResponse(
-                description="Fetched successfully"
+                description="Fetched successfully",
+                response=EmployeeProfileSerializer
             )
         }
     )
     def get(self, request):
         user = self.request.user
+
         try:
-            user_profile = Profile.objects.select_related('user').get(user=user)
-        except Profile.DoesNotExist:
+            profile_instance = EmployeeProfile.objects.select_related('user').get(user=user)
+        except EmployeeProfile.DoesNotExist:
             raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="No profile found for this user",
                                status_code=status.HTTP_404_NOT_FOUND)
-        serialized_data = ProfileSerializer(user_profile, context={"request": request}).data
+
+        serialized_data = self.serializer_class(profile_instance, context={"request": request}).data
         return CustomResponse.success(message="Retrieved profile successfully", data=serialized_data)
 
     @extend_schema(
-        summary="Update user profile",
+        summary="Update employee profile",
         description=
         """
-        This endpoint allows a user to update his/her user profile.
+        This endpoint allows a user to update his/her employee profile.
         """,
-        tags=['Normal Profile'],
+        tags=['Employee Profile'],
         responses={
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
                 description="Provide a profile id"
             ),
             status.HTTP_202_ACCEPTED: OpenApiResponse(
-                description="Updated successfully"
+                description="Updated successfully",
+                response=EmployeeProfileSerializer
             )
         }
     )
     @transaction.atomic()
     def patch(self, request):
         user = self.request.user
-        user_profile = Profile.objects.select_related('user').get(user=user)
-        update_profile = self.serializer_class(user_profile, data=self.request.data, partial=True,
-                                               context={"request": request})
 
+        profile_instance = EmployeeProfile.objects.select_related('user').get(user=user)
+
+        update_profile = self.serializer_class(profile_instance, data=self.request.data, partial=True)
         update_profile.is_valid(raise_exception=True)
+
         updated = self.serializer_class(update_profile.save()).data
         return CustomResponse.success(message="Updated profile successfully", data=updated,
                                       status_code=status.HTTP_202_ACCEPTED)
 
     @extend_schema(
-        summary="Delete user profile",
+        summary="Delete employee profile",
         description=
         """
-        This endpoint allows a user to delete his/her user profile.
+        This endpoint allows a user to delete his/her employee profile.
         """,
-        tags=['Normal Profile'],
+        tags=['Employee Profile'],
         responses={
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
                 description="Provide a profile id"
@@ -731,81 +747,85 @@ class RetrieveUpdateDeleteProfileView(APIView):
     )
     def delete(self, request):
         user = self.request.user
-        Profile.objects.select_related('user').get(user=user).delete()
+        EmployeeProfile.objects.select_related('user').get(user=user).delete()
         return CustomResponse.success(message="Deleted successfully")
 
 
 """
-AGENT PROFILE
+COMPANY PROFILE
 """
 
 
-class RetrieveUpdateDeleteAgentProfileView(APIView):
-    permission_classes = (IsAuthenticatedAgent,)
-    serializer_class = AgentProfileSerializer
+class RetrieveUpdateDeleteCompanyProfileView(APIView):
+    permission_classes = (IsAuthenticatedCompany,)
+    serializer_class = CompanyProfileSerializer
 
     @extend_schema(
-        summary="Retrieve agent profile",
+        summary="Retrieve company profile",
         description=
         """
-        This endpoint allows a user to retrieve his/her agent profile.
+        This endpoint allows a user to retrieve his/her company profile.
         """,
-        tags=['Agent Profile'],
+        tags=['Company Profile'],
         responses={
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
                 description="Provide a profile id"
             ),
             status.HTTP_200_OK: OpenApiResponse(
-                description="Fetched successfully"
+                description="Fetched successfully",
+                response=CompanyProfileSerializer
             )
         }
     )
     def get(self, request):
         user = self.request.user
+
         try:
-            agent_profile = AgentProfile.objects.select_related('user').get(user=user)
-        except AgentProfile.DoesNotExist:
+            profile_instance = CompanyProfile.objects.select_related('user').get(user=user)
+        except CompanyProfile.DoesNotExist:
             raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="No profile found for this user",
                                status_code=status.HTTP_404_NOT_FOUND)
 
-        serialized_data = self.serializer_class(agent_profile, context={"request": request}).data
+        serialized_data = self.serializer_class(profile_instance, context={"request": request}).data
         return CustomResponse.success(message="Retrieved profile successfully", data=serialized_data)
 
     @extend_schema(
-        summary="Update agent profile",
+        summary="Update company profile",
         description=
         """
-        This endpoint allows a user to update his/her agent profile.
+        This endpoint allows a user to update his/her company profile.
         """,
-        tags=['Agent Profile'],
+        tags=['Company Profile'],
         responses={
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
                 description="Provide a profile id"
             ),
             status.HTTP_202_ACCEPTED: OpenApiResponse(
-                description="Updated successfully"
+                description="Updated successfully",
+                response=CompanyProfileSerializer
             )
         }
     )
     @transaction.atomic()
     def patch(self, request):
         user = self.request.user
-        agent_profile = AgentProfile.objects.select_related('user').get(user=user)
-        update_profile = self.serializer_class(agent_profile, data=self.request.data, partial=True,
-                                               context={"request": request})
 
+        profile_instance = CompanyProfile.objects.select_related('user').get(user=user)
+
+        update_profile = self.serializer_class(profile_instance, data=self.request.data, partial=True)
         update_profile.is_valid(raise_exception=True)
         updated = self.serializer_class(update_profile.save()).data
+
         return CustomResponse.success(message="Updated profile successfully", data=updated,
                                       status_code=status.HTTP_202_ACCEPTED)
 
     @extend_schema(
-        summary="Delete agent profile",
+        summary="Delete company profile",
         description=
         """
-        This endpoint allows a user to delete his/her agent profile.
+        This endpoint allows a user to delete his/her company profile.
         """,
-        tags=['Agent Profile'],
+        tags=['Company Profile'],
         responses={
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
                 description="Provide a profile id"
@@ -817,5 +837,5 @@ class RetrieveUpdateDeleteAgentProfileView(APIView):
     )
     def delete(self, request):
         user = self.request.user
-        AgentProfile.objects.select_related('user').get(user=user).delete()
+        CompanyProfile.objects.select_related('user').get(user=user).delete()
         return CustomResponse.success(message="Deleted successfully")

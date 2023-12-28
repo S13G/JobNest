@@ -8,7 +8,7 @@ from apps.core.models import OTPSecret
 from utilities.emails import send_email
 
 
-def send_otp_email(user, email=None, template=None):
+def send_otp_email(user, template=None):
     # Generate or retrieve the OTP secret for the user
     try:
         otp_secret = get_object_or_404(OTPSecret, user=user)
@@ -24,7 +24,7 @@ def send_otp_email(user, email=None, template=None):
     # Compose the email subject and content
     subject = 'One-Time Password (OTP) Verification'
     recipient = [user.email]
-    context = {'first_name': user.first_name, 'last_name': user.last_name, 'otp': otp}
+    context = {'email': user.email, 'otp': otp}
     message = render_to_string(template, context)
 
     # Send the email

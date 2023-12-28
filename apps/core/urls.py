@@ -15,8 +15,7 @@ urlpatterns = [
         name="send_new_email_verification_code"
     ),
     path('change/email', views.ChangeEmailView.as_view(), name="change_email"),
-    path('agent-login', views.AgentLoginView.as_view(), name="agent_log_in"),
-    path('user-login', views.UserLoginView.as_view(), name="user_log_in"),
+    path('login', views.LoginView.as_view(), name="login"),
     path('logout', views.LogoutView.as_view(), name="logout"),
     path('refresh/token', views.RefreshView.as_view(), name="refresh_token"),
     path('request/forgot-password/code', views.RequestForgotPasswordCodeView.as_view(),
@@ -27,9 +26,9 @@ urlpatterns = [
          name="change_forgot_password"),
     path('change/new-password', views.ChangePasswordView.as_view(), name="change_password"),
     path('create-account', views.RegistrationView.as_view(), name="create_account"),
-    path('user_profile/details', views.RetrieveUpdateDeleteProfileView.as_view(),
-         name="get_update_delete_suer_profile"),
-    path('agent_profile/details', views.RetrieveUpdateDeleteAgentProfileView.as_view(),
-         name="get_update_delete_agent_profile"),
+    path('employee_profile/details', views.RetrieveUpdateDeleteEmployeeProfileView.as_view(),
+         name="get_update_delete_employee_profile"),
+    path('company_profile/details', views.RetrieveUpdateDeleteCompanyProfileView.as_view(),
+         name="get_update_delete_company_profile"),
 
 ]

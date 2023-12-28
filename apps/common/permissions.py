@@ -1,19 +1,19 @@
 from rest_framework.permissions import BasePermission
 
 
-class IsAuthenticatedUser(BasePermission):
+class IsAuthenticatedEmployee(BasePermission):
     def has_permission(self, request, view):
         return bool(
             request.user and
             request.user.is_authenticated and
-            request.auth.get('is_agent') is False
+            request.user.employee_profile
         )
 
 
-class IsAuthenticatedAgent(BasePermission):
+class IsAuthenticatedCompany(BasePermission):
     def has_permission(self, request, view):
         return bool(
             request.user and
             request.user.is_authenticated and
-            request.auth.get('is_agent') is True
+            request.user.company_profile
         )
