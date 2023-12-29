@@ -6,7 +6,7 @@ class IsAuthenticatedEmployee(BasePermission):
         return bool(
             request.user and
             request.user.is_authenticated and
-            request.user.employee_profile
+            hasattr(request.user, "employee_profile")
         )
 
 
@@ -15,5 +15,5 @@ class IsAuthenticatedCompany(BasePermission):
         return bool(
             request.user and
             request.user.is_authenticated and
-            request.user.company_profile
+            hasattr(request.user, "company_profile")
         )

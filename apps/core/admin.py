@@ -29,6 +29,9 @@ class UserAdmin(BaseUserAdmin):
     list_display_links = (
         "email",
     )
+    list_editable = (
+        "email_verified",
+    )
     list_filter = (
         "email",
         "company",

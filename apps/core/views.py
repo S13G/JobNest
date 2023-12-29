@@ -70,16 +70,16 @@ class EmployeeRegistrationView(APIView):
 
         if User.objects.filter(email=email).exists():
             if hasattr(User.objects.get(email=email), 'employee_profile'):
-                profile = 'Employee'
+                profile = 'employee'
             else:
-                profile = 'Company'
+                profile = 'company'
 
             raise RequestError(err_code=ErrorCode.ALREADY_EXISTS,
                                err_msg=f"Account already exists and has {profile} profile",
                                status_code=status.HTTP_409_CONFLICT)
 
         try:
-            user = User.objects.create_user(**serializer.validated_data)
+            user = User.objects.create_user(**serializer.validated_data, is_active=True, company=True)
             employee_instance = EmployeeProfile.objects.create(user=user)
         except Exception as e:
             raise RequestError(err_code=ErrorCode.OTHER_ERROR, err_msg=str(e), status_code=status.HTTP_400_BAD_REQUEST)
@@ -128,16 +128,16 @@ class CompanyRegistrationView(APIView):
 
         if User.objects.filter(email=email).exists():
             if hasattr(User.objects.get(email=email), 'employee_profile'):
-                profile = 'Employee'
+                profile = 'employee'
             else:
-                profile = 'Company'
+                profile = 'company'
 
             raise RequestError(err_code=ErrorCode.ALREADY_EXISTS,
                                err_msg=f"Account already exists and has {profile} profile",
                                status_code=status.HTTP_409_CONFLICT)
 
         try:
-            user = User.objects.create_user(**serializer.validated_data)
+            user = User.objects.create_user(**serializer.validated_data, is_active=True)
             company_instance = CompanyProfile.objects.create(user=user)
         except Exception as e:
             raise RequestError(err_code=ErrorCode.OTHER_ERROR, err_msg=str(e), status_code=status.HTTP_400_BAD_REQUEST)
@@ -391,9 +391,8 @@ class LoginView(TokenObtainPairView):
 
         # authenticating user
         user = authenticate(request, email=email, password=password)
-        print(user)
 
-        if not user:
+        if not user or not user.check_password(password):
             raise RequestError(err_code=ErrorCode.INVALID_CREDENTIALS, err_msg="Invalid credentials",
                                status_code=status.HTTP_400_BAD_REQUEST)
 
@@ -402,7 +401,7 @@ class LoginView(TokenObtainPairView):
                                status_code=status.HTTP_400_BAD_REQUEST)
 
         # Checking the type of profile it is (employee or company) and sending it to frontend
-        if hasattr(User, 'employee_profile'):
+        if hasattr(user, 'employee_profile'):
             profile = user.employee_profile
             profile_serializer = EmployeeProfileSerializer(profile)
         else:
@@ -411,7 +410,7 @@ class LoginView(TokenObtainPairView):
 
         # tokens
         tokens_response = super().post(request)
-        tokens = {"refresh": tokens_response['refresh'], "access": tokens_response['access']}
+        tokens = {"refresh": tokens_response.data['refresh'], "access": tokens_response.data['access']}
 
         response_data = {"tokens": tokens, "profile_data": profile_serializer.data}
         return CustomResponse.success(message="Logged in successfully", data=response_data)
@@ -731,16 +730,13 @@ class RetrieveUpdateDeleteEmployeeProfileView(APIView):
                                       status_code=status.HTTP_202_ACCEPTED)
 
     @extend_schema(
-        summary="Delete employee profile",
+        summary="Delete employee account",
         description=
         """
-        This endpoint allows a user to delete his/her employee profile.
+        This endpoint allows a user to delete his/her employee account.
         """,
         tags=['Employee Profile'],
         responses={
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Provide a profile id"
-            ),
             status.HTTP_200_OK: OpenApiResponse(
                 description="Deleted successfully"
             )
@@ -748,7 +744,7 @@ class RetrieveUpdateDeleteEmployeeProfileView(APIView):
     )
     def delete(self, request):
         user = request.user
-        EmployeeProfile.objects.select_related('user').get(user=user).delete()
+        user.delete()
         return CustomResponse.success(message="Deleted successfully")
 
 
@@ -821,16 +817,13 @@ class RetrieveUpdateDeleteCompanyProfileView(APIView):
                                       status_code=status.HTTP_202_ACCEPTED)
 
     @extend_schema(
-        summary="Delete company profile",
+        summary="Delete company account",
         description=
         """
-        This endpoint allows a user to delete his/her company profile.
+        This endpoint allows a user to delete his/her account.
         """,
         tags=['Company Profile'],
         responses={
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Provide a profile id"
-            ),
             status.HTTP_200_OK: OpenApiResponse(
                 description="Deleted successfully"
             )
@@ -838,5 +831,5 @@ class RetrieveUpdateDeleteCompanyProfileView(APIView):
     )
     def delete(self, request):
         user = request.user
-        CompanyProfile.objects.select_related('user').get(user=user).delete()
+        user.delete()
         return CustomResponse.success(message="Deleted successfully")
