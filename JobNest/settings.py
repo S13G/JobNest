@@ -44,6 +44,8 @@ DJANGO_APPS = [
 LOCAL_APPS = [
     'apps.core.apps.CoreConfig',
     'apps.common.apps.CommonConfig',
+    'apps.jobs.apps.JobsConfig',
+    'apps.misc.apps.MiscConfig',
     'apps.social_auth.apps.SocialAuthConfig',
 ]
 
@@ -312,6 +314,7 @@ JAZZMIN_SETTINGS = {
         "core.profile": "fas fa-user",
         "core.companyprofile": "fas fa-building",
         "core.employeeprofile": "far fa-user",
+        "misc.tip": "fas fa-lightbulb",
     },
     # Icons that are used when one is not manually specified
     "default_icon_parents": "fas fa-chevron-circle-right",
