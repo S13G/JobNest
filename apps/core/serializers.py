@@ -1,8 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.core.validators import validate_email
+from django_countries.serializer_fields import CountryField
 from rest_framework import serializers as sr
-
-from apps.common.validators import validate_phone_number
 
 User = get_user_model()
 
@@ -103,6 +102,7 @@ class CompanyProfileSerializer(sr.Serializer):
     user = sr.HiddenField(default=sr.CurrentUserDefault())
     id = sr.UUIDField(read_only=True)
     name = sr.CharField()
+    country = CountryField(name_only=True)
     email = sr.EmailField(source="user.email", read_only=True)
     avatar = sr.ImageField(source="user.avatar")
     address = sr.CharField()
@@ -170,4 +170,3 @@ class RequestNewPasswordCodeSerializer(sr.Serializer):
         except sr.ValidationError:
             raise sr.ValidationError("Invalid email address.")
         return value
-

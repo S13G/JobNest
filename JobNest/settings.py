@@ -122,9 +122,10 @@ INTERNAL_IPS = [
 SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "ACCESS_TOKEN_LIFETIME": timedelta(days=5),
-    "TOKEN_OBTAIN_SERIALIZER": "apps.core.serializers.JWTSerializer",
-
 }
+
+AUTH_USER_MODEL = "core.User"
+
 ROOT_URLCONF = 'JobNest.urls'
 
 TEMPLATES = [
@@ -145,6 +146,18 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'JobNest.wsgi.application'
+
+ASGI_APPLICATION = "JobNest.asgi.application"
+
+# CHANNEL LAYERS
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
@@ -297,6 +310,8 @@ JAZZMIN_SETTINGS = {
         "core.group": "fas fa-users",
         "core.user": "fas fa-universal-access",
         "core.profile": "fas fa-user",
+        "core.companyprofile": "fas fa-building",
+        "core.employeeprofile": "far fa-user",
     },
     # Icons that are used when one is not manually specified
     "default_icon_parents": "fas fa-chevron-circle-right",

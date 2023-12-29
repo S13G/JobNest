@@ -10,8 +10,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.serializers import TokenBlacklistSerializer, \
-    TokenRefreshSerializer, TokenObtainPairSerializer
+from rest_framework_simplejwt.serializers import TokenBlacklistSerializer, TokenRefreshSerializer, \
+    TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenBlacklistView, TokenRefreshView
 
 from apps.common.errors import ErrorCode
@@ -63,19 +63,19 @@ class EmployeeRegistrationView(APIView):
     )
     @transaction.atomic()
     def post(self, request):
-        serializer = self.serializer_class(data=self.request.data)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         email = serializer.validated_data.get('email')
 
         if User.objects.filter(email=email).exists():
-            if hasattr(User.objects.get(email=email), 'employee'):
+            if hasattr(User.objects.get(email=email), 'employee_profile'):
                 profile = 'Employee'
             else:
                 profile = 'Company'
 
             raise RequestError(err_code=ErrorCode.ALREADY_EXISTS,
-                               err_msg=f"Account already exists and has ${profile} profile",
+                               err_msg=f"Account already exists and has {profile} profile",
                                status_code=status.HTTP_409_CONFLICT)
 
         try:
@@ -121,19 +121,19 @@ class CompanyRegistrationView(APIView):
     )
     @transaction.atomic()
     def post(self, request):
-        serializer = self.serializer_class(data=self.request.data)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         email = serializer.validated_data.get('email')
 
         if User.objects.filter(email=email).exists():
-            if hasattr(User.objects.get(email=email), 'employee'):
+            if hasattr(User.objects.get(email=email), 'employee_profile'):
                 profile = 'Employee'
             else:
                 profile = 'Company'
 
             raise RequestError(err_code=ErrorCode.ALREADY_EXISTS,
-                               err_msg=f"Account already exists and has ${profile} profile",
+                               err_msg=f"Account already exists and has {profile} profile",
                                status_code=status.HTTP_409_CONFLICT)
 
         try:
@@ -181,10 +181,10 @@ class VerifyEmailView(APIView):
         }
     )
     def post(self, request):
-        serializer = self.serializer_class(data=self.request.data)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data.get('email')
-        code = self.request.data.get('otp')
+        code = request.data.get('otp')
 
         try:
             user = User.objects.select_related('otp_secret').get(email=email)
@@ -247,7 +247,7 @@ class ResendEmailVerificationCodeView(APIView):
         }
     )
     def post(self, request):
-        serializer = self.serializer_class(data=self.request.data)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data.get('email')
 
@@ -288,7 +288,7 @@ class SendNewEmailVerificationCodeView(APIView):
         }
     )
     def post(self, request):
-        serializer = self.serializer_class(data=self.request.data)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data.get('email')
 
@@ -298,7 +298,7 @@ class SendNewEmailVerificationCodeView(APIView):
             raise RequestError(err_code=ErrorCode.ALREADY_EXISTS, err_msg="Account with this email already exists",
                                status_code=status.HTTP_409_CONFLICT)
         else:
-            send_otp_email(self.request.user, template="email_change.html")
+            send_otp_email(request.user, template="email_change.html")
         return CustomResponse.success("Verification code sent successfully. Please check your mail")
 
 
@@ -331,11 +331,11 @@ class ChangeEmailView(APIView):
     )
     @transaction.atomic()
     def post(self, request):
-        serializer = self.serializer_class(data=self.request.data)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         new_email = serializer.validated_data.get('email')
-        code = self.request.data.get('code')
-        user = self.request.user
+        code = request.data.get('code')
+        user = request.user
 
         if user.email == new_email:
             raise RequestError(err_code=ErrorCode.OLD_EMAIL, err_msg="You can't use your previous email", )
@@ -365,7 +365,7 @@ class ChangeEmailView(APIView):
 
 class LoginView(TokenObtainPairView):
     serializer_class = TokenObtainPairSerializer
-    throttle_classes = [AnonRateThrottle]
+    throttle_classes = [UserRateThrottle]
 
     @extend_schema(
         summary="Login",
@@ -373,7 +373,7 @@ class LoginView(TokenObtainPairView):
         This endpoint authenticates a registered and verified user and provides the necessary authentication tokens.
         """,
         request=LoginSerializer,
-        tags=['Authentication'],
+        tags=['Login'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 description="Logged in successfully",
@@ -384,13 +384,14 @@ class LoginView(TokenObtainPairView):
         }
     )
     def post(self, request):
-        serializer = LoginSerializer(data=self.request.data)
+        serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
-        email = validated_data["email"]
-        password = validated_data["password"]
+        email = serializer.validated_data["email"]
+        password = serializer.validated_data["password"]
 
+        # authenticating user
         user = authenticate(request, email=email, password=password)
+        print(user)
 
         if not user:
             raise RequestError(err_code=ErrorCode.INVALID_CREDENTIALS, err_msg="Invalid credentials",
@@ -439,7 +440,7 @@ class LogoutView(TokenBlacklistView):
         }
     )
     def post(self, request):
-        serializer = self.serializer_class(data=self.request.data)
+        serializer = self.serializer_class(data=request.data)
         try:
             serializer.is_valid(raise_exception=True)
             return CustomResponse.success(message="Logged out successfully.")
@@ -500,9 +501,9 @@ class RequestForgotPasswordCodeView(APIView):
 
     )
     def post(self, request):
-        serializer = self.serializer_class(data=self.request.data)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        email = self.request.data.get('email')
+        email = request.data.get('email')
 
         try:
             user = User.objects.get(email=email)
@@ -546,11 +547,11 @@ class VerifyForgotPasswordCodeView(APIView):
 
     )
     def post(self, request):
-        serializer = self.serializer_class(data=self.request.data)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        email = self.request.data.get("email")
-        code = self.request.data.get("otp")
+        email = request.data.get("email")
+        code = request.data.get("otp")
 
         try:
             user = User.objects.select_related('otp_secret').get(email=email)
@@ -616,7 +617,7 @@ class ChangeForgottenPasswordView(APIView):
                                status_code=status.HTTP_404_NOT_FOUND)
 
         user = decrypt_token_to_profile(token)
-        serializer = self.serializer_class(data=self.request.data)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         password = serializer.validated_data['password']
@@ -650,8 +651,8 @@ class ChangePasswordView(APIView):
     )
     @transaction.atomic()
     def post(self, request):
-        user = self.request.user
-        serializer = self.serializer_class(data=self.request.data)
+        user = request.user
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         password = serializer.validated_data['password']
@@ -688,7 +689,7 @@ class RetrieveUpdateDeleteEmployeeProfileView(APIView):
         }
     )
     def get(self, request):
-        user = self.request.user
+        user = request.user
 
         try:
             profile_instance = EmployeeProfile.objects.select_related('user').get(user=user)
@@ -718,11 +719,11 @@ class RetrieveUpdateDeleteEmployeeProfileView(APIView):
     )
     @transaction.atomic()
     def patch(self, request):
-        user = self.request.user
+        user = request.user
 
         profile_instance = EmployeeProfile.objects.select_related('user').get(user=user)
 
-        update_profile = self.serializer_class(profile_instance, data=self.request.data, partial=True)
+        update_profile = self.serializer_class(profile_instance, data=request.data, partial=True)
         update_profile.is_valid(raise_exception=True)
 
         updated = self.serializer_class(update_profile.save()).data
@@ -746,7 +747,7 @@ class RetrieveUpdateDeleteEmployeeProfileView(APIView):
         }
     )
     def delete(self, request):
-        user = self.request.user
+        user = request.user
         EmployeeProfile.objects.select_related('user').get(user=user).delete()
         return CustomResponse.success(message="Deleted successfully")
 
@@ -778,7 +779,7 @@ class RetrieveUpdateDeleteCompanyProfileView(APIView):
         }
     )
     def get(self, request):
-        user = self.request.user
+        user = request.user
 
         try:
             profile_instance = CompanyProfile.objects.select_related('user').get(user=user)
@@ -808,11 +809,11 @@ class RetrieveUpdateDeleteCompanyProfileView(APIView):
     )
     @transaction.atomic()
     def patch(self, request):
-        user = self.request.user
+        user = request.user
 
         profile_instance = CompanyProfile.objects.select_related('user').get(user=user)
 
-        update_profile = self.serializer_class(profile_instance, data=self.request.data, partial=True)
+        update_profile = self.serializer_class(profile_instance, data=request.data, partial=True)
         update_profile.is_valid(raise_exception=True)
         updated = self.serializer_class(update_profile.save()).data
 
@@ -836,6 +837,6 @@ class RetrieveUpdateDeleteCompanyProfileView(APIView):
         }
     )
     def delete(self, request):
-        user = self.request.user
+        user = request.user
         CompanyProfile.objects.select_related('user').get(user=user).delete()
         return CustomResponse.success(message="Deleted successfully")

@@ -31,7 +31,7 @@ class UserAdmin(BaseUserAdmin):
     )
     list_filter = (
         "email",
-        "company"
+        "company",
         "is_staff",
         "is_active",
     )
@@ -78,11 +78,7 @@ class UserAdmin(BaseUserAdmin):
             {
                 "classes": ("wide",),
                 "fields": (
-                    "first_name",
-                    "last_name",
-                    "phone_number",
                     "email",
-                    "coins_available",
                     "password1",
                     "password2",
                     "is_staff",
@@ -92,8 +88,8 @@ class UserAdmin(BaseUserAdmin):
         ),
     )
     readonly_fields = ("created", "updated",)
-    search_fields = ("email", "first_name", "last_name", "phone_number",)
-    ordering = ("email", "first_name", "last_name",)
+    search_fields = ("email",)
+    ordering = ("email",)
 
 
 @admin.register(EmployeeProfile)
