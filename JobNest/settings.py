@@ -317,6 +317,9 @@ JAZZMIN_SETTINGS = {
         "misc.tip": "fas fa-lightbulb",
         "misc.faq": "fas fa-question",
         "misc.faqtype": "fas fa-list",
+        "jobs.jobtype": "fas fa-list",
+        "jobs.job": "fas fa-briefcase",
+        "jobs.appliedjob": "far fa-file",
     },
     # Icons that are used when one is not manually specified
     "default_icon_parents": "fas fa-chevron-circle-right",

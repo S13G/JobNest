@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.core.validators import FileExtensionValidator
 from django.db import models
+from django_countries import countries
 from django_countries.fields import CountryField
 
 from apps.common.models import BaseModel
@@ -22,7 +23,7 @@ class Job(BaseModel):
     title = models.CharField(max_length=255)
     salary = models.DecimalField(max_digits=10, decimal_places=2)
     type = models.ForeignKey(JobType, on_delete=models.CASCADE, related_name="jobs")
-    location = CountryField(null=True)
+    location = models.CharField(max_length=255, null=True, choices=list(countries) + [('', 'Select Country')])
     active = models.BooleanField(default=True)
     is_saved = models.BooleanField(default=False)
 
