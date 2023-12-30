@@ -1,7 +1,7 @@
 from django.core.paginator import InvalidPage
 from rest_framework.pagination import PageNumberPagination
-from apps.common.errors import ErrorCode
 
+from apps.common.errors import ErrorCode
 from apps.common.exceptions import RequestError
 
 
@@ -30,6 +30,7 @@ class CustomPagination(PageNumberPagination):
             )
 
         self.request = request
+
         return {
             "items": list(self.page),
             "per_page": page_size,

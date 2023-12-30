@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from apps.misc.models import Tip
+from apps.misc.models import Tip, FAQType, FAQ
 
 
 # Register your models here.
@@ -36,5 +36,46 @@ class TipAdmin(admin.ModelAdmin):
         'description',
         'author',
         'position',
+    )
+    list_per_page = 20
+
+
+@admin.register(FAQType)
+class FAQTypeAdmin(admin.ModelAdmin):
+    list_display = (
+        'name',
+    )
+    search_fields = (
+        'name',
+    )
+    list_filter = (
+        'name',
+    )
+    list_per_page = 20
+
+
+@admin.register(FAQ)
+class FAQAdmin(admin.ModelAdmin):
+    fieldsets = [
+        (
+            'FAQ information', {
+                'fields': [
+                    'question',
+                    'type',
+                    'answer',
+                ],
+            }
+        ),
+    ]
+    list_display = (
+        'question',
+        'type',
+    )
+    search_fields = (
+        'question',
+        'type',
+    )
+    list_filter = (
+        'type',
     )
     list_per_page = 20

@@ -1,12 +1,16 @@
-from drf_spectacular.utils import extend_schema, OpenApiResponse
+from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter, OpenApiExample
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.common.errors import ErrorCode
 from apps.common.exceptions import RequestError
-from apps.common.permissions import IsAuthenticatedEmployee
+from apps.common.permissions import IsAuthenticatedEmployee, IsAuthenticatedCompany
 from apps.common.responses import CustomResponse
-from apps.misc.models import Tip
+from apps.misc.filters import FAQFilter
+from apps.misc.models import Tip, FAQ, FAQType
 from apps.misc.serializers import TipSerializer
 
 
@@ -76,3 +80,81 @@ class RetrieveTipView(APIView):
 
         serializer = TipSerializer(tip)
         return CustomResponse.success(message="Tip retrieved successfully", data=serializer.data)
+
+
+class RetrieveAllFAQTypesView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        summary="Retrieve all FAQ types",
+        description=(
+                """
+                This endpoint allows a user to retrieve all FAQ types.
+                """
+        ),
+        tags=['FAQs'],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                description="FAQ types retrieved successfully",
+                examples={
+                    "Example": {
+                        "value": [
+                            {
+                                "id": "550e8400-e29b-41d4-a716-446655440000",
+                                "name": "General"
+                            },
+                            {
+                                "id": "123e4567-e89b-12d3-a456-426614174001",
+                                "name": "Company"
+                            },
+                        ],
+                        "description": "All FAQ types"
+                    },
+                },
+            ),
+        }
+    )
+    def get(self, request):
+        queryset = FAQType.objects.all()
+        data = [
+            {
+                "id": faq_type.id,
+                "name": faq_type.name
+            }
+            for faq_type in queryset
+        ]
+        return CustomResponse.success(message="FAQ types retrieved successfully", data=data)
+
+
+class FilterAllFAQsView(APIView):
+    permission_classes = (IsAuthenticated,)
+    filterset_class = FAQFilter
+    filter_backends = [DjangoFilterBackend]
+
+    @extend_schema(
+        summary="Filter all FAQs",
+        description=(
+                """
+                This endpoint allows a user to filter all FAQs.
+                """
+        ),
+        tags=['FAQs'],
+        parameters=[OpenApiParameter('type', OpenApiTypes.STR, required=False, description="Filter FAQs by type")],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                description="FAQs filtered successfully",
+            )
+        }
+    )
+    def get(self, request):
+        queryset = FAQ.objects.select_related('type').all().order_by('question')
+        queryset = self.filterset_class(data=request.GET, queryset=queryset).qs
+        data = [
+            {
+                "id": faq.id,
+                "question": faq.question,
+                "answer": faq.answer,
+            }
+            for faq in queryset
+        ]
+        return CustomResponse.success(message="FAQs filtered successfully", data=data)
