@@ -5,6 +5,7 @@ from django_countries import countries
 from django_countries.fields import CountryField
 
 from apps.common.models import BaseModel
+from apps.jobs.managers import JobManager
 
 User = get_user_model()
 
@@ -26,6 +27,8 @@ class Job(BaseModel):
     location = models.CharField(max_length=255, null=True, choices=list(countries) + [('', 'Select Country')])
     active = models.BooleanField(default=True)
     is_saved = models.BooleanField(default=False)
+
+    objects = JobManager()
 
     def is_saved_by_user(self, user):
         return self.saved_jobs.filter(user=user).exists()

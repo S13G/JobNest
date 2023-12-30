@@ -36,7 +36,7 @@ class RetrieveAllTipsView(APIView):
         }
     )
     def get(self, request):
-        tips = Tip.objects.only('title').order_by('?')
+        tips = Tip.objects.only('title').order_by('-created')
         data = [
             {
                 "id": tip.id,

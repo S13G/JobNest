@@ -4,7 +4,7 @@ from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.models import PermissionsMixin
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from django_countries.fields import CountryField
+from django_countries import countries
 
 from apps.common.models import BaseModel
 from apps.core.managers import CustomUserManager
@@ -29,7 +29,8 @@ class User(AbstractBaseUser, BaseModel, PermissionsMixin):
     def __str__(self):
         return self.email
 
-    def profile_image(self):
+    @property
+    def profile_image_url(self):
         return self.avatar.url if self.avatar else ""
 
 
@@ -57,7 +58,7 @@ class EmployeeProfile(BaseModel):
 class CompanyProfile(BaseModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="company_profile")
     name = models.CharField(_("Company name"), max_length=255)
-    country = CountryField(null=True)
+    country = models.CharField(max_length=255, null=True, choices=list(countries) + [('', 'Select Country')])
     address = models.CharField(max_length=255, null=True, blank=True)
 
     def __str__(self):
