@@ -1,6 +1,6 @@
+import pycountry
 from django.contrib.auth import get_user_model
 from django.core.validators import validate_email
-from django_countries.serializer_fields import CountryField
 from rest_framework import serializers as sr
 
 User = get_user_model()
@@ -102,7 +102,7 @@ class CompanyProfileSerializer(sr.Serializer):
     user = sr.HiddenField(default=sr.CurrentUserDefault())
     id = sr.UUIDField(read_only=True)
     name = sr.CharField()
-    country = CountryField(name_only=True)
+    country = sr.ChoiceField(choices=[(country.alpha_2, country.name) for country in pycountry.countries])
     email = sr.EmailField(source="user.email", read_only=True)
     avatar = sr.ImageField(source="user.avatar")
     address = sr.CharField()

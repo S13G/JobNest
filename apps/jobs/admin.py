@@ -74,7 +74,7 @@ class JobAdmin(admin.ModelAdmin):
 
     @admin.display(description="Job recruiter")
     def recruiter_name(self, obj):
-        return obj.recruiter.company_profile.full_name
+        return obj.recruiter.company_profile.name
 
 
 @admin.register(AppliedJob)
@@ -88,7 +88,7 @@ class AppliedJobAdmin(admin.ModelAdmin):
                     'cv',
                     'review',
                     'waiting_for_review',
-                    'scheduled_for_review',
+                    'scheduled_for_interview',
                     'scheduled_for_interview_date',
                     'is_accepted',
                 ],

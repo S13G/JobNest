@@ -1,10 +1,10 @@
 from uuid import uuid4
 
+import pycountry
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.models import PermissionsMixin
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from django_countries import countries
 
 from apps.common.models import BaseModel
 from apps.core.managers import CustomUserManager
@@ -58,7 +58,9 @@ class EmployeeProfile(BaseModel):
 class CompanyProfile(BaseModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="company_profile")
     name = models.CharField(_("Company name"), max_length=255)
-    country = models.CharField(max_length=255, null=True, choices=list(countries) + [('', 'Select Country')])
+    country = models.CharField(
+        max_length=255, null=True, choices=[(country.alpha_2, country.name) for country in pycountry.countries]
+    )
     address = models.CharField(max_length=255, null=True, blank=True)
 
     def __str__(self):

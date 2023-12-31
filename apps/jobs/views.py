@@ -1,3 +1,4 @@
+import pycountry
 from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
@@ -10,7 +11,7 @@ from apps.common.exceptions import RequestError
 from apps.common.permissions import IsAuthenticatedEmployee
 from apps.common.responses import CustomResponse
 from apps.jobs.filters import JobFilter
-from apps.jobs.models import Job, JobType
+from apps.jobs.models import Job, JobType, AppliedJob
 from apps.misc.models import Tip
 
 
@@ -21,7 +22,9 @@ class SearchJobsView(APIView):
 
     @extend_schema(
         summary="Search jobs",
-        parameters=[OpenApiParameter(name="search", type=str, required=False)],
+        parameters=[
+            OpenApiParameter(name="search", type=OpenApiTypes.STR, required=False)
+        ],
         description=(
                 "This endpoint allows an authenticated job seeker to search for jobs"
         ),
@@ -129,3 +132,121 @@ class JobsHomeView(APIView):
             ]
         }
         return CustomResponse.success(message="Retrieved successfully", data=data)
+
+
+class JobDetailsView(APIView):
+    permission_classes = (IsAuthenticatedEmployee,)
+
+    @extend_schema(
+        summary="Get single job",
+        description=(
+                """
+                Get single job: Retrieve a single job
+                """
+        ),
+        tags=["Job"],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                response="Successfully retrieved successfully"
+            ),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                description="Job with this id does not exist",
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Missing required parameters",
+            )
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        job_id = self.kwargs.get('id', None)
+
+        if job_id is None:
+            raise RequestError(ErrorCode.INVALID_ENTRY, err_msg="Missing required parameters", data={},
+                               status_code=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            job = Job.objects.get(id=job_id)
+            # job_url = request.build.absolute_uri(job.get_absolute_url())
+            data = {
+                "id": job.id,
+                "title": job.title,
+                "recruiter": job.recruiter.company_profile.name,
+                "recruiter_image": job.recruiter.profile_image_url,
+                "location": pycountry.countries.get(alpha_2=job.location).name,
+                "type": job.type.name,
+                "salary": job.salary,
+                "is_saved": job.is_saved_by_user(request.user),
+                "requirements": [
+                    {
+                        "id": requirement.id,
+                        "requirement": requirement.requirement
+                    }
+                    for requirement in job.requirements.all()
+                ],
+                "url": job.get_absolute_url()
+            }
+            return CustomResponse.success(message="Successfully retrieved job", data=data)
+        except Job.DoesNotExist:
+            return CustomResponse.success(message="Job with this id does not exist", data=None,
+                                          status_code=status.HTTP_404_NOT_FOUND)
+
+
+class JobApplyView(APIView):
+    permission_classes = (IsAuthenticatedEmployee,)
+
+    @extend_schema(
+        summary="Apply for a job",
+        description=(
+                """
+                This endpoint allows a authenticated user to apply for a job
+                """
+        ),
+        tags=["Job"],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                response="Successfully applied for job"
+            ),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                description="Job with this id does not exist",
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Missing required parameters",
+            ),
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE: OpenApiResponse(
+                description="Unsupported file type. Only PDF and DOC files are accepted.",
+            ),
+            status.HTTP_500_INTERNAL_SERVER_ERROR: OpenApiResponse(
+                description="Internal server error",
+            )
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        job_id = self.kwargs.get('id', None)
+        cv = request.FILES.get('cv', None)
+
+        if job_id is None:
+            raise RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="Missing required parameters", data={},
+                               status_code=status.HTTP_400_BAD_REQUEST)
+
+        if cv is None:
+            raise RequestError(err_code=ErrorCode.OTHER_ERROR, err_msg="Upload a cv", data={},
+                               status_code=status.HTTP_400_BAD_REQUEST)
+
+        # Check if the uploaded file is a PDF or DOC
+        valid_extensions = ['pdf', 'doc', 'docx']
+        file_extension = cv.name.split('.')[-1].lower()
+        if file_extension not in valid_extensions:
+            raise RequestError(err_code=ErrorCode.OTHER_ERROR,
+                               err_msg="Unsupported file type. Only PDF and DOC files are accepted.",
+                               status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+
+        try:
+            job = Job.objects.get(id=job_id)  # Try to get the job
+            AppliedJob.objects.create(job=job, cv=cv, user=request.user)  # create the applied job
+            return CustomResponse.success(message="Successfully applied for job", data=None)
+        except Job.DoesNotExist:
+            raise RequestError(ErrorCode.INVALID_ENTRY, err_msg="Job with this id does not exist", data={},
+                               status_code=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            raise RequestError(ErrorCode.OTHER_ERROR, err_msg=f"Internal server error: {e}", data={},
+                               status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
