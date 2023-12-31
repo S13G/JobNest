@@ -455,6 +455,10 @@ class CreateDeleteSavedJobsView(APIView):
             raise RequestError(ErrorCode.INVALID_ENTRY, err_msg="Job with this id does not exist", data={},
                                status_code=status.HTTP_404_NOT_FOUND)
 
+        if job.is_saved_by_user(request.user):
+            raise RequestError(ErrorCode.INVALID_ENTRY, err_msg="Job is already saved", data={},
+                               status_code=status.HTTP_400_BAD_REQUEST)
+
         saved_job = SavedJob.objects.create(job=job, user=request.user)
         data = {
             "id": saved_job.id,
@@ -513,6 +517,7 @@ class RetrieveAllSavedJobsView(APIView):
         description=(
                 """
                 Get saved jobs: Get a list of saved jobs.
+                `P.S`: Use the job id to get the details of the job using the job details endpoint.
                 """
         ),
         tags=["Job"],
