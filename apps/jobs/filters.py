@@ -1,5 +1,6 @@
 from django_filters import FilterSet, filters
 
+from apps.jobs.choices import STATUS_CHOICES
 from apps.jobs.models import JobType
 
 
@@ -12,3 +13,7 @@ class JobFilter(FilterSet):
     salary_min = filters.NumericRangeFilter(field_name='salary', lookup_expr='gte')
     salary_max = filters.NumericRangeFilter(field_name='salary', lookup_expr='lte')
     location = filters.CharFilter(field_name='location', lookup_expr='icontains')
+
+
+class AppliedJobFilter(FilterSet):
+    status = filters.ChoiceFilter(field_name='status', choices=STATUS_CHOICES)

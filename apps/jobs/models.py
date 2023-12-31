@@ -6,7 +6,7 @@ from django.urls import reverse
 
 from apps.common.models import BaseModel
 from apps.jobs.choices import STATUS_CHOICES, STATUS_PENDING
-from apps.jobs.managers import JobManager
+from apps.jobs.managers import JobManager, AppliedJobManager, SavedJobManager
 
 User = get_user_model()
 
@@ -55,6 +55,8 @@ class SavedJob(BaseModel):
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="saved_jobs")
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="saved_by")
 
+    objects = SavedJobManager()
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -70,12 +72,14 @@ class AppliedJob(BaseModel):
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="applications")
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="applicants")
     cv = models.FileField(
-        upload_to="cv_uploads/",
+        upload_to="static/applied_files/",
         validators=[FileExtensionValidator(allowed_extensions=['doc', 'pdf', 'docx'])]
     )
     review = models.TextField(null=True, blank=True)
     status = models.CharField(max_length=255, choices=STATUS_CHOICES, null=True, default=STATUS_PENDING)
     interview_date = models.DateTimeField(null=True, blank=True)
+
+    object = AppliedJobManager()
 
     def __str__(self):
         return f"{self.user.email} applied for {self.job.title}"
