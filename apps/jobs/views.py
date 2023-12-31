@@ -1,4 +1,5 @@
 import pycountry
+from django.db import transaction
 from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
@@ -10,6 +11,7 @@ from apps.common.errors import ErrorCode
 from apps.common.exceptions import RequestError
 from apps.common.permissions import IsAuthenticatedEmployee
 from apps.common.responses import CustomResponse
+from apps.jobs.choices import STATUS_PENDING, STATUS_ACCEPTED
 from apps.jobs.filters import JobFilter
 from apps.jobs.models import Job, JobType, AppliedJob
 from apps.misc.models import Tip
@@ -210,16 +212,20 @@ class JobApplyView(APIView):
                 description="Job with this id does not exist",
             ),
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Missing required parameters",
+                description="Missing required parameters or upload a cv",
             ),
             status.HTTP_415_UNSUPPORTED_MEDIA_TYPE: OpenApiResponse(
                 description="Unsupported file type. Only PDF and DOC files are accepted.",
             ),
             status.HTTP_500_INTERNAL_SERVER_ERROR: OpenApiResponse(
                 description="Internal server error",
+            ),
+            status.HTTP_409_CONFLICT: OpenApiResponse(
+                description="Already applied for this job",
             )
         }
     )
+    @transaction.atomic()
     def post(self, request, *args, **kwargs):
         job_id = self.kwargs.get('id', None)
         cv = request.FILES.get('cv', None)
@@ -240,13 +246,29 @@ class JobApplyView(APIView):
                                err_msg="Unsupported file type. Only PDF and DOC files are accepted.",
                                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
 
-        try:
-            job = Job.objects.get(id=job_id)  # Try to get the job
-            AppliedJob.objects.create(job=job, cv=cv, user=request.user)  # create the applied job
-            return CustomResponse.success(message="Successfully applied for job", data=None)
-        except Job.DoesNotExist:
-            raise RequestError(ErrorCode.INVALID_ENTRY, err_msg="Job with this id does not exist", data={},
+        job = Job.objects.get(id=job_id)  # Try to get the job
+
+        if job is None:
+            raise RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="Job with this id does not exist", data={},
                                status_code=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            raise RequestError(ErrorCode.OTHER_ERROR, err_msg=f"Internal server error: {e}", data={},
-                               status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Check if the user has already applied to the job and their application is still pending
+        existing_pending_application = AppliedJob.objects.filter(job=job, user=request.user,
+                                                                 status=STATUS_PENDING).exists()
+        if existing_pending_application:
+            raise RequestError(err_code=ErrorCode.INVALID_ENTRY,
+                               err_msg="You have already applied to this job and your application is still pending.",
+                               data={}, status_code=status.HTTP_409_CONFLICT)
+
+        # Check if the user has already applied to the job and their application has been accepted
+        existing_accepted_application = AppliedJob.objects.filter(job=job, user=request.user,
+                                                                  status=STATUS_ACCEPTED).exists()
+        if existing_accepted_application:
+            raise RequestError(err_code=ErrorCode.INVALID_ENTRY,
+                               err_msg="You have already applied to this job and your application has been accepted.",
+                               data={}, status_code=status.HTTP_409_CONFLICT)
+
+        AppliedJob.objects.create(job=job, cv=cv, user=request.user)  # create the applied job
+        return CustomResponse.success(message="Successfully applied for job", data=None)
+
+

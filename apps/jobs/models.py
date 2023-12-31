@@ -5,6 +5,7 @@ from django.db import models
 from django.urls import reverse
 
 from apps.common.models import BaseModel
+from apps.jobs.choices import STATUS_CHOICES, STATUS_PENDING
 from apps.jobs.managers import JobManager
 
 User = get_user_model()
@@ -73,10 +74,8 @@ class AppliedJob(BaseModel):
         validators=[FileExtensionValidator(allowed_extensions=['doc', 'pdf', 'docx'])]
     )
     review = models.TextField(null=True, blank=True)
-    waiting_for_review = models.BooleanField(default=True)
-    scheduled_for_interview = models.BooleanField(default=False)
-    scheduled_for_interview_date = models.DateTimeField(null=True, blank=True)
-    is_accepted = models.BooleanField(null=True)
+    status = models.CharField(max_length=255, choices=STATUS_CHOICES, null=True, default=STATUS_PENDING)
+    interview_date = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.email} applied for {self.job.title}"

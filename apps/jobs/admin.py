@@ -87,10 +87,8 @@ class AppliedJobAdmin(admin.ModelAdmin):
                     'user',
                     'cv',
                     'review',
-                    'waiting_for_review',
-                    'scheduled_for_interview',
-                    'scheduled_for_interview_date',
-                    'is_accepted',
+                    'status',
+                    'interview_date',
                 ],
             }
         ),
@@ -110,20 +108,17 @@ class AppliedJobAdmin(admin.ModelAdmin):
     list_display = (
         'job',
         'user',
-        'waiting_for_review',
-        'scheduled_for_interview',
-        'is_accepted',
+        'status',
     )
     search_fields = (
         'job',
         'user',
-        'review'
+        'review',
+        'status',
     )
     list_filter = (
         'job',
         'user',
-        'waiting_for_review',
-        'scheduled_for_interview',
-        'is_accepted',
+        'status',
     )
     list_per_page = 20
