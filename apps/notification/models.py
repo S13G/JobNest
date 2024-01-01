@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.db import models
 
 from apps.common.models import BaseModel
+from apps.notification.choices import NOTIFICATION_TYPE
 
 User = get_user_model()
 
@@ -11,6 +12,7 @@ User = get_user_model()
 # Create your models here.
 class Notification(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
+    notification_type = models.CharField(max_length=255, choices=NOTIFICATION_TYPE)
     message = models.TextField(null=True, blank=True)
 
     def __str__(self):

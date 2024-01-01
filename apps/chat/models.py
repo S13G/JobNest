@@ -13,6 +13,7 @@ class Message(BaseModel):
     receiver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="receiver_messages")
     text = models.TextField(null=True, blank=True)
     is_read = models.BooleanField(default=False)
+    is_archived = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"Message by {self.sender.first_name} to {self.receiver.first_name} : {self.text}"
+        return f"Message by {self.sender.email} to {self.receiver.email} : {self.text}"

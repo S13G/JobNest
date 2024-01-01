@@ -1,10 +1,13 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Q, Case, When, F, CharField
-from drf_spectacular.utils import extend_schema, OpenApiResponse
+from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from apps.chat.filters import ChatFilter
 from apps.chat.models import Message
 from apps.common.errors import ErrorCode
 from apps.common.exceptions import RequestError
@@ -18,11 +21,18 @@ User = get_user_model()
 
 class RetrieveChatListView(APIView):
     permission_classes = (IsAuthenticated,)
+    filterset_class = ChatFilter
+    filter_backends = [DjangoFilterBackend]
 
     @extend_schema(
-        summary="Retrieve chat or message list",
-        description="List of rooms",
+        summary="Retrieve and filter chat list",
+        description="This endpoint allows a user to retrieve and filter chat list",
         tags=['Chat'],
+        parameters=[
+            OpenApiParameter(name='is_read', type=OpenApiTypes.BOOL, description="Check read status", required=False),
+            OpenApiParameter(name='is_archived', type=OpenApiTypes.BOOL, description="Check archived status",
+                             required=False),
+        ],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 description="Returned all list of rooms",
@@ -31,8 +41,8 @@ class RetrieveChatListView(APIView):
     )
     def get(self, request):
         user = self.request.user
-
-        messages = Message.objects.select_related("sender", "receiver").filter(Q(sender=user) | Q(receiver=user))
+        queryset = Message.objects.select_related("sender", "receiver").filter(Q(sender=user) | Q(receiver=user))
+        messages = self.filterset_class(data=request.GET, queryset=queryset).qs
 
         inbox_list = (
             messages.annotate(
@@ -140,3 +150,71 @@ class RetrieveChatView(APIView):
                 inbox["receiver_name"] = inbox["receiver"].employee_profile.full_name
 
         return CustomResponse.success(message="Returned specific chat", data=data)
+
+
+class ArchiveChatView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        summary="Archive a specific chat",
+        description="Archive specific chat: Make sure you specify the friend id",
+        tags=['Chat'],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                description="Archived specific chat",
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Invalid friend id",
+            ),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                description="Chat does not exist",
+            )
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        friend_id = self.kwargs.get("friend_id")
+        if not friend_id:
+            raise RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="Invalid friend id",
+                               status_code=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            Message.objects.filter(sender=request.user, receiver_id=friend_id).update(is_archived=True)
+        except Message.DoesNotExist:
+            return RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Chat does not exist",
+                                status_code=status.HTTP_400_BAD_REQUEST)
+
+        return CustomResponse.success(message="Archived specific chat")
+
+
+class RemoveArchivedChatView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        summary="Removes a specific chat from archived",
+        description="Removes a specific chat from the archived list: Make sure you specify the friend id",
+        tags=['Chat'],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                description="Unarchived specific chat",
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Invalid friend id",
+            ),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                description="Chat does not exist",
+            )
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        friend_id = self.kwargs.get("friend_id")
+        if not friend_id:
+            raise RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="Invalid friend id",
+                               status_code=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            Message.objects.filter(sender=request.user, receiver_id=friend_id).update(is_archived=False)
+        except Message.DoesNotExist:
+            return RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Chat does not exist",
+                                status_code=status.HTTP_400_BAD_REQUEST)
+
+        return CustomResponse.success(message="Unarchived specific chat")
