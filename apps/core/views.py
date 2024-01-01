@@ -21,6 +21,8 @@ from apps.common.responses import CustomResponse
 from apps.core.emails import send_otp_email
 from apps.core.models import OTPSecret, EmployeeProfile, CompanyProfile
 from apps.core.serializers import *
+from apps.notification.choices import NOTIFICATION_COMPLETE_PROFILE, NOTIFICATION_PROFILE_UPDATED
+from apps.notification.models import Notification
 from utilities.encryption import decrypt_token_to_profile, encrypt_profile_to_token
 
 User = get_user_model()
@@ -81,6 +83,8 @@ class EmployeeRegistrationView(APIView):
         try:
             user = User.objects.create_user(**serializer.validated_data, is_active=True, company=True)
             employee_instance = EmployeeProfile.objects.create(user=user)
+            Notification.objects.create(user=user, notification_type=NOTIFICATION_COMPLETE_PROFILE,
+                                        message="Complete your profile")
         except Exception as e:
             raise RequestError(err_code=ErrorCode.OTHER_ERROR, err_msg=str(e), status_code=status.HTTP_400_BAD_REQUEST)
 
@@ -137,8 +141,10 @@ class CompanyRegistrationView(APIView):
                                status_code=status.HTTP_409_CONFLICT)
 
         try:
-            user = User.objects.create_user(**serializer.validated_data, is_active=True)
+            user = User.objects.create_user(**serializer.validated_data, is_active=True, company=True)
             company_instance = CompanyProfile.objects.create(user=user)
+            Notification.objects.create(user=user, notification_type=NOTIFICATION_COMPLETE_PROFILE,
+                                        message="Complete your profile")
         except Exception as e:
             raise RequestError(err_code=ErrorCode.OTHER_ERROR, err_msg=str(e), status_code=status.HTTP_400_BAD_REQUEST)
 
@@ -724,8 +730,11 @@ class RetrieveUpdateDeleteEmployeeProfileView(APIView):
 
         update_profile = self.serializer_class(profile_instance, data=request.data, partial=True)
         update_profile.is_valid(raise_exception=True)
-
         updated = self.serializer_class(update_profile.save()).data
+
+        Notification.objects.create(user=user, notification_type=NOTIFICATION_PROFILE_UPDATED,
+                                    message="Profile updated successfully")
+
         return CustomResponse.success(message="Updated profile successfully", data=updated,
                                       status_code=status.HTTP_202_ACCEPTED)
 
@@ -812,6 +821,9 @@ class RetrieveUpdateDeleteCompanyProfileView(APIView):
         update_profile = self.serializer_class(profile_instance, data=request.data, partial=True)
         update_profile.is_valid(raise_exception=True)
         updated = self.serializer_class(update_profile.save()).data
+
+        Notification.objects.create(user=user, notification_type=NOTIFICATION_PROFILE_UPDATED,
+                                    message="Profile updated successfully")
 
         return CustomResponse.success(message="Updated profile successfully", data=updated,
                                       status_code=status.HTTP_202_ACCEPTED)

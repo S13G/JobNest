@@ -59,6 +59,7 @@ urlpatterns_v1 = [
     path("misc/", include("apps.misc.urls")),
     path("jobs/", include("apps.jobs.urls")),
     path("chat/", include("apps.chat.urls")),
+    path("notification/", include("apps.notification.urls")),
 ]
 
 urlpatterns = [

@@ -15,6 +15,8 @@ from apps.jobs.choices import STATUS_PENDING, STATUS_ACCEPTED
 from apps.jobs.filters import JobFilter, AppliedJobFilter
 from apps.jobs.models import Job, JobType, AppliedJob, SavedJob
 from apps.misc.models import Tip
+from apps.notification.choices import NOTIFICATION_JOB_APPLIED
+from apps.notification.models import Notification
 
 
 # # Create your views here.
@@ -268,6 +270,10 @@ class JobApplyView(APIView):
                                data={}, status_code=status.HTTP_409_CONFLICT)
 
         AppliedJob.objects.create(job=job, cv=cv, user=request.user)  # create the applied job
+
+        Notification.objects.create(user=request.user, notification_type=NOTIFICATION_JOB_APPLIED,
+                                    message="You have applied for a job")
+
         return CustomResponse.success(message="Successfully applied for job", data=None)
 
 

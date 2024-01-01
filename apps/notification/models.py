@@ -16,7 +16,7 @@ class Notification(BaseModel):
     message = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return f"Notification by {self.user.email} : {self.text}"
+        return f"Notification by {self.user.email} : {self.message}"
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
