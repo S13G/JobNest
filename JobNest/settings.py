@@ -48,6 +48,7 @@ LOCAL_APPS = [
     'apps.misc.apps.MiscConfig',
     'apps.social_auth.apps.SocialAuthConfig',
     'apps.chat.apps.ChatConfig',
+    'apps.notification.apps.NotificationConfig',
 ]
 
 THIRD_PARTY_APPS = [

@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Q, Case, When, F, CharField
-from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -53,22 +53,24 @@ class RetrieveChatListView(APIView):
                 {
                     "id": inbox.id,
                     "receiver_id": inbox.receiver.id,
-                    "receiver_name": f"{inbox.receiver.first_name} {inbox.receiver.last_name}",
-                    "receiver_profile_image": inbox.receiver.profile_image(),
+                    "receiver_name": "",
+                    "receiver_profile_image": inbox.receiver.profile_image_url,
                     "last_message": inbox.text,
                     "time": inbox.created
                 }
                 for inbox in sorted_inbox_list
             ],
-            "messages": [
-                {
-                    "id": message.id,
-                    "text": message.text,
-                    "is_read": message.is_read
-                }
-                for message in messages
-            ]
+            "unread_count": Message.objects.select_related("sender", "receiver")
+            .filter(receiver=user, is_read=False).count(),
         }
+
+        # Adjust receiver details based on the type of authenticated user
+        if user.employee_profile:
+            for inbox in data["inbox_list"]:
+                inbox["receiver_name"] = inbox["receiver"].company_profile.name
+        elif user.company_profile:
+            for inbox in data["inbox_list"]:
+                inbox["receiver_name"] = inbox["receiver"].employee_profile.full_name
 
         return CustomResponse.success(message="Returned all list of rooms", data=data)
 
@@ -118,49 +120,23 @@ class RetrieveChatView(APIView):
                 {
                     "id": message.id,
                     "sender_id": message.sender.id,
-                    "sender_profile_image": message.sender.profile_image(),
+                    "sender_profile_image": message.sender.profile_image_url,
                     "receiver_id": message.receiver.id,
-                    "receiver_profile_image": message.receiver.profile_image(),
+                    "receiver_name": "",
+                    "receiver_profile_image": message.receiver.profile_image_url,
                     "text": message.text,
                     "is_read": message.is_read
                 }
                 for message in messages
             ]
         }
+
+        # Adjust receiver details based on the type of authenticated user
+        if user.employee_profile:
+            for inbox in data["messages"]:
+                inbox["receiver_name"] = inbox["receiver"].company_profile.name
+        elif user.company_profile:
+            for inbox in data["messages"]:
+                inbox["receiver_name"] = inbox["receiver"].employee_profile.full_name
+
         return CustomResponse.success(message="Returned specific chat", data=data)
-
-
-class UpdateMessagesReadStatus(APIView):
-    permission_classes = (IsAuthenticated,)
-
-    @extend_schema(
-        summary="Change message read status",
-        description="Update chat messages read status",
-        tags=['Chat'],
-        responses={
-            status.HTTP_200_OK: OpenApiResponse(
-                description="Success",
-            ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Invalid friend id",
-            ),
-            status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                description="Sender does not exist",
-            )
-        }
-    )
-    def post(self, request, *args, **kwargs):
-        friend_id = self.kwargs.get("friend_id")
-        if not friend_id:
-            return RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="Invalid sender id",
-                                status_code=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            friend = User.objects.get(id=friend_id)
-        except User.DoesNotExist:
-            return RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Sender does not exist",
-                                status_code=status.HTTP_404_NOT_FOUND)
-
-        user = self.request.user
-        Message.objects.filter(sender=friend, receiver=user, is_read=False).update(is_read=True)
-        return CustomResponse.success(message="Success")

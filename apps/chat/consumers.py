@@ -1,7 +1,6 @@
 import json
 
 from channels.db import database_sync_to_async
-from channels.generic.websocket import AsyncWebsocketConsumer
 from django.contrib.auth import get_user_model
 
 from apps.chat.models import Message
@@ -108,39 +107,3 @@ class ChatConsumer(BaseConsumer):
         }
 
         return message_data
-
-
-"""
-NOTIFICATION CONSUMER
-"""
-
-
-class NotificationConsumer(AsyncWebsocketConsumer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(args, kwargs)
-        self.room_group_name = None
-        self.room_name = None
-
-    async def connect(self):
-        user_id = self.scope["url_route"]["kwargs"]["user_id"]
-        self.room_name = f"notification_{user_id}"
-        self.room_group_name = f"notification_{user_id}"
-
-        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
-        await self.accept()
-
-    async def disconnect(self, close_code):
-        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
-
-    async def receive(self, text_data):
-        text_data_json = json.loads(text_data)
-        notification = text_data_json
-
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {"type": "notification_message", "notification": notification},
-        )
-
-    async def notification_message(self, event):
-        notification = event.copy()
-        await self.send(text_data=json.dumps(notification))
