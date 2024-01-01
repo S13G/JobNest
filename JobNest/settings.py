@@ -47,6 +47,7 @@ LOCAL_APPS = [
     'apps.jobs.apps.JobsConfig',
     'apps.misc.apps.MiscConfig',
     'apps.social_auth.apps.SocialAuthConfig',
+    'apps.chat.apps.ChatConfig',
 ]
 
 THIRD_PARTY_APPS = [

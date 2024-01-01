@@ -58,6 +58,7 @@ urlpatterns_v1 = [
     path("social_auth/", include("apps.social_auth.urls")),
     path("misc/", include("apps.misc.urls")),
     path("jobs/", include("apps.jobs.urls")),
+    path("chat/", include("apps.chat.urls")),
 ]
 
 urlpatterns = [
