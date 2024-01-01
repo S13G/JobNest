@@ -63,6 +63,7 @@ class ChangeEmailSerializer(sr.Serializer):
 
 class EmployeeProfileSerializer(sr.Serializer):
     user = sr.HiddenField(default=sr.CurrentUserDefault())
+    user_id = sr.UUIDField(read_only=True)
     id = sr.UUIDField(read_only=True)
     full_name = sr.CharField()
     date_of_birth = sr.DateField()
@@ -100,6 +101,7 @@ class EmployeeProfileSerializer(sr.Serializer):
 
 class CompanyProfileSerializer(sr.Serializer):
     user = sr.HiddenField(default=sr.CurrentUserDefault())
+    user_id = sr.UUIDField(read_only=True)
     id = sr.UUIDField(read_only=True)
     name = sr.CharField()
     country = sr.ChoiceField(choices=[(country.alpha_2, country.name) for country in pycountry.countries])

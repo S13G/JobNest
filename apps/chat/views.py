@@ -53,7 +53,7 @@ class RetrieveChatListView(APIView):
                 )
             )
             .order_by("other", "-created")
-            .distinct("other")
+            # .distinct("other")
         )
 
         sorted_inbox_list = sorted(inbox_list, key=lambda x: x.created, reverse=True)
@@ -62,6 +62,7 @@ class RetrieveChatListView(APIView):
             "inbox_list": [
                 {
                     "id": inbox.id,
+                    "receiver": inbox.receiver,
                     "receiver_id": inbox.receiver.id,
                     "receiver_name": "",
                     "receiver_profile_image": inbox.receiver.profile_image_url,
@@ -75,10 +76,11 @@ class RetrieveChatListView(APIView):
         }
 
         # Adjust receiver details based on the type of authenticated user
-        if user.employee_profile:
+        if hasattr(user, "employee_profile"):
             for inbox in data["inbox_list"]:
+                print(inbox['receiver'].id)
                 inbox["receiver_name"] = inbox["receiver"].company_profile.name
-        elif user.company_profile:
+        elif hasattr(user, "company_profile"):
             for inbox in data["inbox_list"]:
                 inbox["receiver_name"] = inbox["receiver"].employee_profile.full_name
 
@@ -129,9 +131,11 @@ class RetrieveChatView(APIView):
             "messages": [
                 {
                     "id": message.id,
+                    # "sender": message.sender,
                     "sender_id": message.sender.id,
                     "sender_profile_image": message.sender.profile_image_url,
                     "receiver_id": message.receiver.id,
+                    "receiver": message.receiver,
                     "receiver_name": "",
                     "receiver_profile_image": message.receiver.profile_image_url,
                     "text": message.text,
@@ -142,10 +146,10 @@ class RetrieveChatView(APIView):
         }
 
         # Adjust receiver details based on the type of authenticated user
-        if user.employee_profile:
+        if hasattr(user, "employee_profile"):
             for inbox in data["messages"]:
                 inbox["receiver_name"] = inbox["receiver"].company_profile.name
-        elif user.company_profile:
+        elif hasattr(user, "company_profile"):
             for inbox in data["messages"]:
                 inbox["receiver_name"] = inbox["receiver"].employee_profile.full_name
 
