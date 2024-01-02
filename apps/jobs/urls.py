@@ -14,4 +14,8 @@ urlpatterns = [
     path('saved-job/<str:id>', CreateDeleteSavedJobsView.as_view(), name="create-delete-saved-job"),
     path('vacancies/search', SearchVacanciesView.as_view(), name="search-vacancies"),
     path('vacancies/filter', VacanciesHomeView.as_view(), name="filter-vacancies"),
+    path('job-types/all', RetrieveAllJobTypesView.as_view(), name='job-types-all'),
+    path('job/create', CreateVacanciesView.as_view(), name="create-job"),
+    path('job/update/delete/<str:id>', UpdateDeleteVacancyView.as_view(), name="update-delete-job"),
+    path('applied-job/update', UpdateAppliedJobView.as_view(), name="update-applied-job"),
 ]

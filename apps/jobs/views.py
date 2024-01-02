@@ -11,12 +11,13 @@ from apps.common.errors import ErrorCode
 from apps.common.exceptions import RequestError
 from apps.common.permissions import IsAuthenticatedEmployee, IsAuthenticatedCompany
 from apps.common.responses import CustomResponse
-from apps.jobs.choices import STATUS_PENDING, STATUS_ACCEPTED
+from apps.jobs.choices import STATUS_PENDING, STATUS_ACCEPTED, STATUS_REJECTED, STATUS_SCHEDULED_FOR_INTERVIEW
 from apps.jobs.filters import JobFilter, AppliedJobFilter, VacanciesFilter
-from apps.jobs.models import Job, JobType, AppliedJob, SavedJob
-from apps.jobs.serializers import CreateJobSerializer
+from apps.jobs.models import Job, JobType, AppliedJob, SavedJob, JobRequirement
+from apps.jobs.serializers import CreateJobSerializer, UpdateVacanciesSerializer, UpdateAppliedJobSerializer
 from apps.misc.models import Tip
-from apps.notification.choices import NOTIFICATION_JOB_APPLIED
+from apps.notification.choices import NOTIFICATION_JOB_APPLIED, NOTIFICATION_APPLICATION_ACCEPTED, \
+    NOTIFICATION_APPLICATION_REJECTED, NOTIFICATION_APPLICATION_SCHEDULED_FOR_INTERVIEW
 from apps.notification.models import Notification
 
 
@@ -669,24 +670,244 @@ class VacanciesHomeView(APIView):
         return CustomResponse.success(message="Retrieved successfully", data=data)
 
 
+class RetrieveAllJobTypesView(APIView):
+    permission_classes = (IsAuthenticatedCompany,)
+
+    @extend_schema(
+        summary="Retrieve all job types",
+        description=(
+                "This endpoint allows an authenticated job recruiter to retrieve all job types"
+        ),
+        tags=['Job Recruiter Home'],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                description="Successfully retrieved all job types",
+            ),
+        }
+    )
+    def get(self, request):
+        job_types = JobType.objects.all()
+        data = [
+            {
+                "id": job_type.id,
+                "name": job_type.name
+            }
+            for job_type in job_types
+        ]
+        return CustomResponse.success(message="Successfully retrieved all job types", data=data)
+
+
 class CreateVacanciesView(APIView):
     permission_classes = (IsAuthenticatedCompany,)
+    serializer_class = CreateJobSerializer
 
     @extend_schema(
         summary="Create a new job",
         description=(
                 "This endpoint allows an authenticated job recruiter to create a new job"
         ),
-        tags=['Job Recruiter Home'],
+        tags=['Vacancy'],
         request=CreateJobSerializer,
         responses={
             status.HTTP_201_CREATED: OpenApiResponse(
                 description="Successfully created a new job",
             ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Missing required parameters",
-            ),
         }
     )
+    @transaction.atomic()
     def post(self, request):
-        pass
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        requirements_data = serializer.validated_data.pop('requirements', [])
+        created_job = Job.objects.create(recruiter=request.user, **serializer.validated_data)
+
+        # create JobRequirements objects for each requirement
+        job_requirements = [
+            JobRequirement(job=created_job, requirement=requirement)
+            for requirement in requirements_data
+        ]
+        JobRequirement.objects.bulk_create(job_requirements)
+
+        data = {
+            "id": created_job,
+            "title": created_job.title,
+            "job_image": created_job.image_url,
+            "recruiter": created_job.recruiter.company_profile.name,
+        }
+
+        return CustomResponse.success(message="Successfully created a new job", data=data,
+                                      status_code=status.HTTP_201_CREATED)
+
+
+class UpdateDeleteVacancyView(APIView):
+    permission_classes = (IsAuthenticatedCompany,)
+    serializer_class = UpdateVacanciesSerializer
+
+    @extend_schema(
+        summary="Update a job vacancy",
+        description=(
+                "This endpoint allows an authenticated job recruiter to update a job"
+        ),
+        tags=['Vacancy'],
+        request=UpdateVacanciesSerializer,
+        responses={
+            status.HTTP_202_ACCEPTED: OpenApiResponse(
+                description="Successfully updated a job",
+            ),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                description="Job not found",
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Missing required parameters",
+            )
+        }
+    )
+    def update(self, request, *args, **kwargs):
+        vacancy_id = self.kwargs.get('id')
+        if vacancy_id is None:
+            return CustomResponse.error(message="Missing required parameters", status_code=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            job_instance = Job.objects.get(id=vacancy_id, recruiter=request.user)
+        except Job.DoesNotExist:
+            return CustomResponse.error(message="Job not found", status_code=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        requirements_data = serializer.validated_data.pop('requirements', [])
+
+        for key, value in serializer.validated_data.items():
+            setattr(job_instance, key, value)
+        job_instance.save()
+
+        requirements_to_create = []
+
+        for requirement in requirements_data:
+            # Try to get the existing requirement
+            existing_requirement, created = JobRequirement.objects.get_or_create(job=job_instance,
+                                                                                 requirement=requirement)
+            # If the requirement didn't exist, we need to update it
+            if not created:
+                existing_requirement.requirement = requirement.requirement
+                requirements_to_create.append(existing_requirement)
+
+        # Use bulk_create() to update the existing requirements
+        JobRequirement.objects.bulk_create(requirements_to_create)
+
+        data = {
+            "id": job_instance.id,
+            "title": job_instance.title,
+            "job_image": job_instance.image_url,
+            "recruiter": job_instance.recruiter.company_profile.name,
+        }
+
+        return CustomResponse.success(message="Successfully updated a job", data=data)
+
+    @extend_schema(
+        summary="Delete a job",
+        description=(
+                "This endpoint allows an authenticated job recruiter to delete a job"
+        ),
+        tags=['Vacancy'],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                description="Successfully deleted a job",
+            ),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                description="Job not found",
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Missing required parameters",
+            )
+        }
+    )
+    def delete(self, request, *args, **kwargs):
+        vacancy_id = self.kwargs.get('id')
+        if vacancy_id is None:
+            return CustomResponse.error(message="Missing required parameters", status_code=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            job_instance = Job.objects.get(id=vacancy_id, recruiter=request.user)
+        except Job.DoesNotExist:
+            return CustomResponse.error(message="Job not found", status_code=status.HTTP_404_NOT_FOUND)
+
+        job_instance.delete()
+
+        return CustomResponse.success(message="Successfully deleted a job")
+
+
+class UpdateAppliedJobView(APIView):
+    permission_classes = (IsAuthenticatedCompany,)
+    serializer_class = UpdateAppliedJobSerializer
+
+    @extend_schema(
+        summary="Update applied job",
+        description=(
+                "This endpoint allows an authenticated job seeker to update an applied job"
+        ),
+        tags=['Applied Job'],
+        request=UpdateAppliedJobSerializer,
+        responses={
+            status.HTTP_202_ACCEPTED: OpenApiResponse(
+                description="Successfully updated an applied job",
+            ),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                description="No application with this ID",
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Missing required parameters",
+            )
+        }
+    )
+    def patch(self, request, *args, **kwargs):
+        applied_job_id = self.kwargs.get('id')
+        if applied_job_id is None:
+            return CustomResponse.error(message="Missing required parameters", status_code=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            applied_job = AppliedJob.objects.get(id=applied_job_id, job__recruiter=request.user)
+        except AppliedJob.DoesNotExist:
+            return CustomResponse.error(message="No application with this ID", status_code=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        for key, value in serializer.validated_data.items():
+            setattr(applied_job, key, value)
+        applied_job.save()
+
+        if applied_job.status == STATUS_ACCEPTED:
+            Notification.objects.create(
+                user=applied_job.user,
+                notification_type=NOTIFICATION_APPLICATION_ACCEPTED,
+                message=f"Your application for {applied_job.job.title} has been accepted!",
+            )
+        elif applied_job.status == STATUS_REJECTED:
+            Notification.objects.create(
+                user=applied_job.user,
+                notification_type=NOTIFICATION_APPLICATION_REJECTED,
+                message=f"Your application for {applied_job.job.title} has been rejected!",
+            )
+        elif applied_job.status == STATUS_SCHEDULED_FOR_INTERVIEW:
+            Notification.objects.create(
+                user=applied_job.user,
+                notification_type=NOTIFICATION_APPLICATION_SCHEDULED_FOR_INTERVIEW,
+                message=f"Your application for {applied_job.job.title} has been scheduled for an interview!",
+            )
+
+        data = {
+            "id": applied_job.id,
+            "job": applied_job.job.title,
+            "applicant": applied_job.user.employee_profile.full_name,
+            "applicant_image": applied_job.user.employee_profile.image_url,
+            "cv": applied_job.cv.url,
+            "status": applied_job.status,
+            "review": applied_job.review,
+            "interview_date": applied_job.interview_date
+        }
+
+        return CustomResponse.success(message="Successfully updated an applied job", data=data)
+
+
