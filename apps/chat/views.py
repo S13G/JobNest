@@ -56,7 +56,7 @@ class RetrieveChatListView(APIView):
             # .distinct("other")
         )
 
-        sorted_inbox_list = sorted(inbox_list, key=lambda x: x.created, reverse=True)
+        sorted_inbox_list = sorted(set(inbox_list), key=lambda x: x.created, reverse=True)
 
         data = {
             "inbox_list": [
@@ -78,11 +78,10 @@ class RetrieveChatListView(APIView):
         # Adjust receiver details based on the type of authenticated user
         if hasattr(user, "employee_profile"):
             for inbox in data["inbox_list"]:
-                print(inbox['receiver'].id)
-                inbox["receiver_name"] = inbox["receiver"].company_profile.name
+                inbox["receiver_name"] = inbox["receiver"].employee_profile.full_name
         elif hasattr(user, "company_profile"):
             for inbox in data["inbox_list"]:
-                inbox["receiver_name"] = inbox["receiver"].employee_profile.full_name
+                inbox["receiver_name"] = inbox["receiver"].company_profile.name
 
         return CustomResponse.success(message="Returned all list of rooms", data=data)
 

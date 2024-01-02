@@ -9,11 +9,12 @@ from rest_framework.views import APIView
 
 from apps.common.errors import ErrorCode
 from apps.common.exceptions import RequestError
-from apps.common.permissions import IsAuthenticatedEmployee
+from apps.common.permissions import IsAuthenticatedEmployee, IsAuthenticatedCompany
 from apps.common.responses import CustomResponse
 from apps.jobs.choices import STATUS_PENDING, STATUS_ACCEPTED
-from apps.jobs.filters import JobFilter, AppliedJobFilter
+from apps.jobs.filters import JobFilter, AppliedJobFilter, VacanciesFilter
 from apps.jobs.models import Job, JobType, AppliedJob, SavedJob
+from apps.jobs.serializers import CreateJobSerializer
 from apps.misc.models import Tip
 from apps.notification.choices import NOTIFICATION_JOB_APPLIED
 from apps.notification.models import Notification
@@ -32,7 +33,7 @@ class SearchJobsView(APIView):
         description=(
                 "This endpoint allows an authenticated job seeker to search for jobs"
         ),
-        tags=['Home'],
+        tags=['Job Seeker Home'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 description="Successfully retrieved searched jobs",
@@ -56,14 +57,14 @@ class SearchJobsView(APIView):
             jobs = Job.objects.filter(
                 Q(title__icontains=search) |
                 Q(location__icontains=search) | Q(type__name__icontains=search) |
-                Q(recruiter__company_profile__name__icontains=search)).order_by('-created')
+                Q(recruiter__company_profile__name__icontains=search), active=True).order_by('-created')
 
             data = [
                 {
                     "id": single_job.id,
                     "title": single_job.title,
                     "recruiter": single_job.recruiter.company_profile.name,
-                    "recruiter_image": single_job.recruiter.profile_image_url,
+                    "job_image": single_job.image_url,
                     "location": single_job.location,
                     "type": single_job.type.name,
                     "salary": single_job.salary,
@@ -94,7 +95,7 @@ class JobsHomeView(APIView):
             OpenApiParameter('location', type=OpenApiTypes.STR, required=False, description="Filter jobs by location"),
             OpenApiParameter('salary', type=OpenApiTypes.STR, required=False, description="Filter jobs by salary"),
         ],
-        tags=["Home"],
+        tags=["Job Seeker Home"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 response="Retrieved successfully"
@@ -105,7 +106,7 @@ class JobsHomeView(APIView):
         profile_name = request.user.employee_profile.full_name
         tip = Tip.objects.only('title').order_by('-created').first()
         job_types = JobType.objects.only('name')
-        queryset = Job.objects.all().order_by('-created')
+        queryset = Job.objects.filter(active=True).order_by('-created')
         queryset = self.filterset_class(data=request.GET, queryset=queryset).qs
         data = {
             "profile_name": profile_name,
@@ -126,7 +127,7 @@ class JobsHomeView(APIView):
                     "id": job.id,
                     "title": job.title,
                     "recruiter": job.recruiter.company_profile.name,
-                    "recruiter_image": job.recruiter.profile_image_url,
+                    "job_image": job.image_url,
                     "location": job.location,
                     "type": job.type.name,
                     "salary": job.salary,
@@ -174,7 +175,7 @@ class JobDetailsView(APIView):
                 "id": job.id,
                 "title": job.title,
                 "recruiter": job.recruiter.company_profile.name,
-                "recruiter_image": job.recruiter.profile_image_url,
+                "job_image": job.image_url,
                 "location": pycountry.countries.get(alpha_2=job.location).name,
                 "type": job.type.name,
                 "salary": job.salary,
@@ -320,7 +321,7 @@ class AppliedJobsSearchView(APIView):
                     "id": single_job.id,
                     "title": single_job.job.title,
                     "recruiter": single_job.job.recruiter.company_profile.name,
-                    "recruiter_image": single_job.job.recruiter.profile_image_url,
+                    "job_image": single_job.image_url,
                     "status": single_job.status,
                 }
                 for single_job in applied_jobs
@@ -368,7 +369,7 @@ class AppliedJobDetailsView(APIView):
                 "id": applied_job.id,
                 "title": applied_job.job.title,
                 "recruiter": applied_job.job.recruiter.company_profile.name,
-                "recruiter_image": applied_job.job.recruiter.profile_image_url,
+                "job_image": applied_job.job.image_url,
                 "location": pycountry.countries.get(alpha_2=applied_job.job.location).name,
                 "type": applied_job.job.type.name,
                 "salary": applied_job.job.salary,
@@ -412,7 +413,7 @@ class FilterAppliedJobsView(APIView):
                     "id": application.id,
                     "title": application.job.title,
                     "recruiter": application.job.recruiter.company_profile.name,
-                    "recruiter_image": application.job.recruiter.profile_image_url,
+                    "job_image": application.job.image_url,
                     "status": application.status,
                     "salary": application.salary,
                     "type": application.type.name,
@@ -471,7 +472,7 @@ class CreateDeleteSavedJobsView(APIView):
             "job_id": saved_job.job.id,
             "title": saved_job.job.title,
             "recruiter": saved_job.job.recruiter.company_profile.name,
-            "recruiter_image": saved_job.job.recruiter.profile_image_url,
+            "job_image": saved_job.job.image_url,
             "location": pycountry.countries.get(alpha_2=saved_job.job.location).name,
             "type": saved_job.job.type.name,
             "salary": saved_job.job.salary,
@@ -542,7 +543,7 @@ class RetrieveAllSavedJobsView(APIView):
                     "job_id": saved_job.job.id,
                     "title": saved_job.job.title,
                     "recruiter": saved_job.job.recruiter.company_profile.name,
-                    "recruiter_image": saved_job.job.recruiter.profile_image_url,
+                    "job_image": saved_job.job.image_url,
                     "location": pycountry.countries.get(alpha_2=saved_job.job.location).name,
                     "type": saved_job.job.type.name,
                     "salary": saved_job.job.salary,
@@ -552,3 +553,140 @@ class RetrieveAllSavedJobsView(APIView):
             ]
         }
         return CustomResponse.success(message="Successfully retrieved saved jobs", data=data)
+
+
+class SearchVacanciesView(APIView):
+    permission_classes = (IsAuthenticatedCompany,)
+
+    @extend_schema(
+        summary="Search jobs",
+        parameters=[
+            OpenApiParameter(name="search", type=OpenApiTypes.STR, required=False)
+        ],
+        description=(
+                "This endpoint allows an authenticated job recruiter to search for his posted vacancies"
+        ),
+        tags=['Job Recruiter Home'],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                description="Successfully retrieved posted vacancies",
+            ),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                description="No vacancies found",
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Missing required parameters",
+            )
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        search = self.request.query_params.get('search', None)
+
+        if search is None:
+            raise RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="Missing required parameters", data={},
+                               status_code=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            jobs = Job.objects.filter(
+                Q(title__icontains=search) |
+                Q(location__icontains=search) | Q(type__name__icontains=search) |
+                Q(recruiter__company_profile__name__icontains=search)).order_by('-created')
+
+            data = [
+                {
+                    "id": single_job.id,
+                    "title": single_job.title,
+                    "recruiter": single_job.recruiter.company_profile.name,
+                    "job_image": single_job.image_url,
+                    "location": single_job.location,
+                    "type": single_job.type.name,
+                    "salary": single_job.salary,
+                    "active": single_job.active,
+                }
+                for single_job in jobs
+            ]
+            return CustomResponse.success(message="Successfully retrieved searched vacancies", data=data)
+        except Job.DoesNotExist:
+            return CustomResponse.success(message="No jobs found", data=None)
+
+
+class VacanciesHomeView(APIView):
+    permission_classes = (IsAuthenticatedCompany,)
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = VacanciesFilter
+
+    @extend_schema(
+        summary="Get home page",
+        description=(
+                """
+                Get home page: Search, Retrieve all job types, and all jobs and also tip including notifications.
+                """
+        ),
+        parameters=[
+            OpenApiParameter('active', type=OpenApiTypes.BOOL, required=False, description="Filter jobs by active"),
+        ],
+        tags=["Job Recruiter Home"],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                response="Retrieved successfully"
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Missing required parameters",
+            ),
+        }
+    )
+    def get(self, request):
+        profile_name = request.user.company_profile.name
+        my_vacancies = Job.objects.filter(recruiter=request.user).order_by('-created')
+        all_applied_jobs = AppliedJob.objects.filter(job__recruiter=request.user).order_by('-created')
+        queryset = self.filterset_class(data=request.GET, queryset=my_vacancies).qs
+
+        data = {
+            "profile_name": profile_name,
+            "vacancies": [
+                {
+                    "id": job.id,
+                    "title": job.title,
+                    "recruiter": job.recruiter.company_profile.name,
+                    "job_image": job.image_url,
+                    "location": job.location,
+                    "type": job.type.name,
+                    "salary": job.salary,
+                    "active": job.active
+                }
+                for job in queryset
+            ],
+            "all_applied_applicants": [
+                {
+                    "id": applied_job.id,
+                    "full_name": applied_job.user.employee_profile.full_name,
+                    "job_title": applied_job.job.title,
+                    "cv": applied_job.cv.url
+                }
+                for applied_job in all_applied_jobs
+            ]
+        }
+        return CustomResponse.success(message="Retrieved successfully", data=data)
+
+
+class CreateVacanciesView(APIView):
+    permission_classes = (IsAuthenticatedCompany,)
+
+    @extend_schema(
+        summary="Create a new job",
+        description=(
+                "This endpoint allows an authenticated job recruiter to create a new job"
+        ),
+        tags=['Job Recruiter Home'],
+        request=CreateJobSerializer,
+        responses={
+            status.HTTP_201_CREATED: OpenApiResponse(
+                description="Successfully created a new job",
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Missing required parameters",
+            ),
+        }
+    )
+    def post(self, request):
+        pass

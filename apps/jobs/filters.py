@@ -17,3 +17,7 @@ class JobFilter(FilterSet):
 
 class AppliedJobFilter(FilterSet):
     status = filters.ChoiceFilter(field_name='status', choices=STATUS_CHOICES)
+
+
+class VacanciesFilter(FilterSet):
+    active = filters.BooleanFilter(field_name="active")

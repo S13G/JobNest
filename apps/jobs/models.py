@@ -23,6 +23,7 @@ class JobType(BaseModel):
 class Job(BaseModel):
     recruiter = models.ForeignKey(User, on_delete=models.CASCADE, related_name="jobs")
     title = models.CharField(max_length=255)
+    image = models.ImageField(upload_to="jobs", null=True)
     salary = models.DecimalField(max_digits=10, decimal_places=2)
     type = models.ForeignKey(JobType, on_delete=models.CASCADE, related_name="jobs")
     location = models.CharField(
@@ -32,6 +33,10 @@ class Job(BaseModel):
     is_saved = models.BooleanField(default=False)
 
     objects = JobManager()
+
+    @property
+    def image_url(self):
+        return self.image.url if self.image else ""
 
     def get_absolute_url(self):
         return reverse('job-details', args=[str(self.id)])
