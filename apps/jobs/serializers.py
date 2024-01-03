@@ -9,7 +9,7 @@ from apps.jobs.models import JobType
 class CreateJobSerializer(serializers.Serializer):
     image = serializers.ImageField()
     title = serializers.CharField()
-    salary = serializers.DecimalField()
+    salary = serializers.DecimalField(max_digits=10, decimal_places=2)
     location = serializers.ChoiceField(choices=[(country.alpha_2, country.name) for country in pycountry.countries])
     type = serializers.PrimaryKeyRelatedField(queryset=JobType.objects.all())
     requirements = serializers.ListField(child=serializers.CharField())
@@ -18,7 +18,7 @@ class CreateJobSerializer(serializers.Serializer):
 class UpdateVacanciesSerializer(serializers.Serializer):
     image = serializers.ImageField()
     title = serializers.CharField()
-    salary = serializers.DecimalField()
+    salary = serializers.DecimalField(max_digits=10, decimal_places=2)
     location = serializers.ChoiceField(choices=[(country.alpha_2, country.name) for country in pycountry.countries])
     type = serializers.PrimaryKeyRelatedField(queryset=JobType.objects.all())
     requirements = serializers.ListField(child=serializers.CharField())
