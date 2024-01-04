@@ -81,15 +81,15 @@ class ChatConsumer(BaseConsumer):
 
     @database_sync_to_async
     def message_data(self, message):
+        user = self.scope["user"]
+
         try:
             friend = User.objects.get(id=self.room_name)
         except Exception as e:
             raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Friend does not exist", status_code=404)
 
-        if friend == self.scope['user']:
+        if friend == user:
             raise RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="You can't text yourself", status_code=400)
-
-        user = self.scope["user"]
 
         # Create message
         created_message = Message.objects.create(sender=user, receiver=friend, text=message)

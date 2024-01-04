@@ -40,7 +40,7 @@ class RetrieveChatListView(APIView):
         }
     )
     def get(self, request):
-        user = self.request.user
+        user = request.user
         queryset = Message.objects.select_related("sender", "receiver").filter(Q(sender=user) | Q(receiver=user))
         messages = self.filterset_class(data=request.GET, queryset=queryset).qs
 
@@ -53,19 +53,19 @@ class RetrieveChatListView(APIView):
                 )
             )
             .order_by("other", "-created")
-            # .distinct("other")
+            .distinct("other")
         )
 
-        sorted_inbox_list = sorted(set(inbox_list), key=lambda x: x.created, reverse=True)
+        sorted_inbox_list = sorted(inbox_list, key=lambda x: x.created, reverse=True)
 
         data = {
             "inbox_list": [
                 {
                     "id": inbox.id,
-                    "receiver": inbox.receiver,
-                    "receiver_id": inbox.receiver.id,
-                    "receiver_name": "",
-                    "receiver_profile_image": inbox.receiver.profile_image_url,
+                    "sender": inbox.sender,
+                    "friend": inbox.receiver,
+                    "friend_name": "",
+                    "friend_profile_image": inbox.receiver.profile_image_url,
                     "last_message": inbox.text,
                     "time": inbox.created
                 }
@@ -75,14 +75,15 @@ class RetrieveChatListView(APIView):
             .filter(receiver=user, is_read=False).count(),
         }
 
-        # Adjust receiver details based on the type of authenticated user
-        if hasattr(user, "employee_profile"):
-            for inbox in data["inbox_list"]:
-                inbox["receiver_name"] = inbox["receiver"].employee_profile.full_name
-        elif hasattr(user, "company_profile"):
-            for inbox in data["inbox_list"]:
-                inbox["receiver_name"] = inbox["receiver"].company_profile.name
+        # Adjust sender details based on the type of authenticated user
+        for inbox in data["inbox_list"]:
+            if hasattr(inbox['friend'], "employee_profile"):
+                inbox["friend_name"] = inbox["friend"].employee_profile.full_name
+            elif hasattr(inbox['friend'], "company_profile"):
+                inbox["friend_name"] = inbox["friend"].company_profile.name
 
+            del inbox["friend"]
+            del inbox["sender"]
         return CustomResponse.success(message="Returned all list of rooms", data=data)
 
 
@@ -130,13 +131,12 @@ class RetrieveChatView(APIView):
             "messages": [
                 {
                     "id": message.id,
-                    # "sender": message.sender,
-                    "sender_id": message.sender.id,
+                    "sender": message.sender,
+                    "sender_name": "",
                     "sender_profile_image": message.sender.profile_image_url,
-                    "receiver_id": message.receiver.id,
-                    "receiver": message.receiver,
-                    "receiver_name": "",
-                    "receiver_profile_image": message.receiver.profile_image_url,
+                    "friend": message.receiver,
+                    "friend_name": "",
+                    "friend_profile_image": message.receiver.profile_image_url,
                     "text": message.text,
                     "is_read": message.is_read
                 }
@@ -145,13 +145,21 @@ class RetrieveChatView(APIView):
         }
 
         # Adjust receiver details based on the type of authenticated user
-        if hasattr(user, "employee_profile"):
-            for inbox in data["messages"]:
-                inbox["receiver_name"] = inbox["receiver"].company_profile.name
-        elif hasattr(user, "company_profile"):
-            for inbox in data["messages"]:
-                inbox["receiver_name"] = inbox["receiver"].employee_profile.full_name
+        for inbox in data["inbox_list"]:
+            if hasattr(inbox['sender'], "employee_profile"):
+                inbox["sender_name"] = inbox["sender"].employee_profile.full_name
+            elif hasattr(inbox['sender'], "company_profile"):
+                inbox["sender_name"] = inbox["sender"].company_profile.name
 
+            del inbox["sender"]
+
+        for inbox in data["inbox_list"]:
+            if hasattr(inbox['friend'], "employee_profile"):
+                inbox["friend_name"] = inbox["friend"].employee_profile.full_name
+            elif hasattr(inbox['friend'], "company_profile"):
+                inbox["friend_name"] = inbox["friend"].company_profile.name
+
+            del inbox["friend"]
         return CustomResponse.success(message="Returned specific chat", data=data)
 
 
