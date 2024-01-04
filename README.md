@@ -8,7 +8,7 @@ Welcome to JobNest, the ultimate job portal platform designed specifically for s
 
 ## JobNest API Link
 
-https://jobnest.vercel.app/
+nil -  for now
 
 ## Table of Contents
 
