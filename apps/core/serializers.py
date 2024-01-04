@@ -111,6 +111,7 @@ class CompanyProfileSerializer(sr.Serializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
+        data['country'] = pycountry.countries.get(alpha_2=data['country']).name
 
         for field_name, field_value in data.items():
             if field_value is None:

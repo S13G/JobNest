@@ -10,7 +10,7 @@ class Tip(BaseModel):
     title = models.CharField(max_length=255, null=True)
     description = models.TextField()
     author = models.CharField(max_length=255, null=True)
-    author_image = models.ImageField(upload_to="static/tip_author", null=True)
+    author_image = models.ImageField(upload_to="static/tip_author", null=True, blank=True)
     position = models.CharField(max_length=255, null=True, blank=True)
 
     @property

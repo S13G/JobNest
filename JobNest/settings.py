@@ -111,7 +111,10 @@ CORS_ALLOW_METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "JOBNEST API",
-    "DESCRIPTION": """A Job Finder API""",
+    "DESCRIPTION": """
+    🚀 JobNest: Your Dream Job is Just a Click Away 
+    Welcome to JobNest, the future of job hunting. We're here to connect students with their dream jobs. With features like registration, job application, CV submission, and more, we're making the job hunting process easy and efficient. Join us today and kickstart your career journey! 🌟👩‍🎓👨‍
+    """,
     "VERSION": "1.0.0",
     "CONTACT": "ayflix0@gmail.com",
     "SCHEMA_PATH_PREFIX": r'/api/v[0-9]',
