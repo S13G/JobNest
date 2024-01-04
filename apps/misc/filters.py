@@ -7,5 +7,5 @@ class FAQFilter(FilterSet):
     type = filters.ChoiceFilter(
         field_name='type__name',
         lookup_expr='exact',
-        choices=[(type_obj.name, type_obj.name) for type_obj in FAQType.objects.all()]
+        choices=lambda: [(type_obj.name, type_obj.name) for type_obj in FAQType.objects.all()]
     )

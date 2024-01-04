@@ -150,7 +150,7 @@ class JobDetailsView(APIView):
                 Get single job: Retrieve a single job
                 """
         ),
-        tags=["Job"],
+        tags=["Job (Seeker)"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 response="Successfully retrieved job details"
@@ -206,7 +206,7 @@ class JobApplyView(APIView):
                 This endpoint allows a authenticated user to apply for a job
                 """
         ),
-        tags=["Job"],
+        tags=["Job (Seeker)"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 response="Successfully applied for job"
@@ -290,7 +290,7 @@ class AppliedJobsSearchView(APIView):
         description=(
                 "This endpoint allows an authenticated job seeker to search for their applied jobs"
         ),
-        tags=['Job'],
+        tags=['Job (Seeker)'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 description="Successfully retrieved searched applied jobs",
@@ -343,7 +343,7 @@ class AppliedJobDetailsView(APIView):
                 Get single applied job: Retrieve the details of the applied job, pass in the `id` of the applied job to the path parameter.
                 """
         ),
-        tags=["Job"],
+        tags=["Job  (Seeker)"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 response="Successfully retrieved job details",
@@ -398,7 +398,7 @@ class FilterAppliedJobsView(APIView):
         parameters=[
             OpenApiParameter('status', type=OpenApiTypes.STR, required=False, description="Filter jobs by type"),
         ],
-        tags=["Job"],
+        tags=["Job  (Seeker)"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 response="Retrieved successfully"
@@ -437,7 +437,7 @@ class CreateDeleteSavedJobsView(APIView):
                 Create saved job: Create a saved job, pass in the `id` of the job to the path parameter.
                 """
         ),
-        tags=["Job"],
+        tags=["Job (Seeker)"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 response="Successfully created saved job",
@@ -488,7 +488,7 @@ class CreateDeleteSavedJobsView(APIView):
                 Delete saved job: Delete a saved job, pass in the `id` of the saved job to the path parameter.
                 """
         ),
-        tags=["Job"],
+        tags=["Job (Seeker)"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 response="Successfully deleted saved job",
@@ -528,7 +528,7 @@ class RetrieveAllSavedJobsView(APIView):
                 `P.S`: Use the job id to get the details of the job using the job details endpoint.
                 """
         ),
-        tags=["Job"],
+        tags=["Job (Seeker)"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 response="Successfully retrieved saved jobs",
@@ -706,7 +706,7 @@ class CreateVacanciesView(APIView):
         description=(
                 "This endpoint allows an authenticated job recruiter to create a new job"
         ),
-        tags=['Vacancy'],
+        tags=['Job (Recruiter)'],
         request=CreateJobSerializer,
         responses={
             status.HTTP_201_CREATED: OpenApiResponse(
@@ -749,7 +749,7 @@ class UpdateDeleteVacancyView(APIView):
         description=(
                 "This endpoint allows an authenticated job recruiter to update a job"
         ),
-        tags=['Vacancy'],
+        tags=['Job (Recruiter)'],
         request=UpdateVacanciesSerializer,
         responses={
             status.HTTP_202_ACCEPTED: OpenApiResponse(
@@ -810,7 +810,7 @@ class UpdateDeleteVacancyView(APIView):
         description=(
                 "This endpoint allows an authenticated job recruiter to delete a job"
         ),
-        tags=['Vacancy'],
+        tags=['Job (Recruiter)'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 description="Successfully deleted a job",
@@ -847,7 +847,7 @@ class UpdateAppliedJobView(APIView):
         description=(
                 "This endpoint allows an authenticated job seeker to update an applied job"
         ),
-        tags=['Applied Job'],
+        tags=['Job (Recruiter)'],
         request=UpdateAppliedJobSerializer,
         responses={
             status.HTTP_202_ACCEPTED: OpenApiResponse(

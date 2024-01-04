@@ -113,8 +113,14 @@ class EmployeeProfileAdmin(admin.ModelAdmin):
     list_display = (
         'full_name',
         "occupation",
+        'date_of_birth',
         'created',
         'updated',
+    )
+    list_display_links = (
+        "full_name",
+        "occupation",
+        "date_of_birth",
     )
     list_per_page = 20
     search_fields = (
@@ -137,6 +143,10 @@ class CompanyProfileAdmin(admin.ModelAdmin):
             }
         ),
     ]
+    list_display_links = (
+        "name",
+        'country',
+    )
     list_display = (
         "name",
         'country',

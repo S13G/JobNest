@@ -96,21 +96,6 @@ class RetrieveAllFAQTypesView(APIView):
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 description="FAQ types retrieved successfully",
-                examples={
-                    "Example": {
-                        "value": [
-                            {
-                                "id": "550e8400-e29b-41d4-a716-446655440000",
-                                "name": "General"
-                            },
-                            {
-                                "id": "123e4567-e89b-12d3-a456-426614174001",
-                                "name": "Company"
-                            },
-                        ],
-                        "description": "All FAQ types"
-                    },
-                },
             ),
         }
     )
@@ -139,7 +124,9 @@ class FilterAllFAQsView(APIView):
                 """
         ),
         tags=['FAQs'],
-        parameters=[OpenApiParameter('type', OpenApiTypes.STR, required=False, description="Filter FAQs by type")],
+        parameters=[
+            OpenApiParameter('type', OpenApiTypes.STR, required=False, description="Filter FAQs by type")
+        ],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 description="FAQs filtered successfully",

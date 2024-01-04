@@ -8,7 +8,7 @@ class JobFilter(FilterSet):
     type = filters.ChoiceFilter(
         field_name='type__name',
         lookup_expr='icontains',
-        choices=[(type_obj.name, type_obj.name) for type_obj in JobType.objects.all()]
+        choices=lambda: [(type_obj.name, type_obj.name) for type_obj in JobType.objects.all()]
     )
     salary_min = filters.NumericRangeFilter(field_name='salary', lookup_expr='gte')
     salary_max = filters.NumericRangeFilter(field_name='salary', lookup_expr='lte')

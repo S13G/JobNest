@@ -71,7 +71,8 @@ class EmployeeRegistrationView(APIView):
         email = serializer.validated_data.get('email')
 
         if User.objects.filter(email=email).exists():
-            if hasattr(User.objects.get(email=email), 'employee_profile'):
+            user = User.objects.get(email=email)
+            if hasattr(user, 'employee_profile'):
                 profile = 'employee'
             else:
                 profile = 'company'

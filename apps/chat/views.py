@@ -145,21 +145,21 @@ class RetrieveChatView(APIView):
         }
 
         # Adjust receiver details based on the type of authenticated user
-        for inbox in data["inbox_list"]:
-            if hasattr(inbox['sender'], "employee_profile"):
-                inbox["sender_name"] = inbox["sender"].employee_profile.full_name
-            elif hasattr(inbox['sender'], "company_profile"):
-                inbox["sender_name"] = inbox["sender"].company_profile.name
+        for message in data["messages"]:
+            sender = message["sender"]
+            if hasattr(sender, "employee_profile"):
+                message["sender_name"] = sender.employee_profile.full_name
+            elif hasattr(sender, "company_profile"):
+                message["sender_name"] = sender.company_profile.name
+            del message["sender"]
 
-            del inbox["sender"]
+            friend = message["friend"]
+            if hasattr(friend, "employee_profile"):
+                message["friend_name"] = friend.employee_profile.full_name
+            elif hasattr(friend, "company_profile"):
+                message["friend_name"] = friend.company_profile.name
+            del message["friend"]
 
-        for inbox in data["inbox_list"]:
-            if hasattr(inbox['friend'], "employee_profile"):
-                inbox["friend_name"] = inbox["friend"].employee_profile.full_name
-            elif hasattr(inbox['friend'], "company_profile"):
-                inbox["friend_name"] = inbox["friend"].company_profile.name
-
-            del inbox["friend"]
         return CustomResponse.success(message="Returned specific chat", data=data)
 
 
@@ -189,7 +189,9 @@ class ArchiveChatView(APIView):
                                status_code=status.HTTP_400_BAD_REQUEST)
 
         try:
-            Message.objects.filter(sender=request.user, receiver_id=friend_id).update(is_archived=True)
+            Message.objects.filter(
+                Q(sender=request.user, receiver_id=friend_id) |
+                Q(sender_id=friend_id, receiver=request.user)).update(is_archived=True)
         except Message.DoesNotExist:
             return RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Chat does not exist",
                                 status_code=status.HTTP_400_BAD_REQUEST)

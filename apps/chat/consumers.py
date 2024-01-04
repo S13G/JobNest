@@ -2,6 +2,7 @@ import json
 
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 
 from apps.chat.models import Message
 from apps.chat.serializers import MessageSerializer
@@ -77,7 +78,8 @@ class ChatConsumer(BaseConsumer):
             raise RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="You can't text yourself", status_code=400)
 
         # Mark all unread messages as read
-        Message.objects.filter(receiver=user, sender=friend, is_read=False).update(is_read=True)
+        Message.objects.filter(Q(sender=user, receiver=friend) |
+                               Q(sender=friend, receiver=user)).update(is_read=True)
 
     @database_sync_to_async
     def message_data(self, message):
