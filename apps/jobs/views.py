@@ -789,6 +789,11 @@ class RetrieveAllSavedJobsView(APIView):
         return CustomResponse.success(message="Successfully retrieved saved jobs", data=data)
 
 
+"""
+COMPANY SECTION
+"""
+
+
 class SearchVacanciesView(APIView):
     permission_classes = (IsAuthenticatedCompany,)
 
@@ -888,10 +893,40 @@ class VacanciesHomeView(APIView):
         tags=["Job Recruiter Home"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
-                response="Retrieved successfully"
-            ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Missing required parameters",
+                response={"application/json"},
+                description="Retrieved successfully",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Retrieved successfully",
+                            "data": {
+                                "profile_name": "<string>",
+                                "vacancies": [
+                                    {
+                                        "id": "<uuid>",
+                                        "title": "<string>",
+                                        "recruiter": "<string>",
+                                        "job_image": "<string:image_url>",
+                                        "location": "<string>",
+                                        "type": "<string>",
+                                        "salary": "<decimal or float>",
+                                        "active": "<bool>",
+                                    },
+                                ],
+                                "all_applied_applicants": [
+                                    {
+                                        "id": "<uuid>",
+                                        "full_name": "<string>",
+                                        "job_title": "<string>",
+                                        "cv": "<cv_url>",
+                                    }
+                                ]
+                            }
+                        }
+                    )
+                ]
             ),
         }
     )
@@ -940,7 +975,23 @@ class RetrieveAllJobTypesView(APIView):
         tags=['Job Recruiter Home'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
+                response={"application/json"},
                 description="Successfully retrieved all job types",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully retrieved all job types",
+                            "data": [
+                                {
+                                    "id": "<uuid>",
+                                    "name": "<string>"
+                                }
+                            ]
+                        }
+                    )
+                ]
             ),
         }
     )
@@ -969,7 +1020,23 @@ class CreateVacanciesView(APIView):
         request=CreateJobSerializer,
         responses={
             status.HTTP_201_CREATED: OpenApiResponse(
+                response={"application/json"},
                 description="Successfully created a new job",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully created a new job",
+                            "data": {
+                                "id": "<uuid>",
+                                "title": "<string>",
+                                "job_image": "<string:image_url>",
+                                "recruiter": "<string>",
+                            }
+                        }
+                    )
+                ]
             ),
         }
     )
@@ -1012,25 +1079,49 @@ class UpdateDeleteVacancyView(APIView):
         request=UpdateVacanciesSerializer,
         responses={
             status.HTTP_202_ACCEPTED: OpenApiResponse(
+                response={"application/json"},
                 description="Successfully updated a job",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully created a new job",
+                            "data": {
+                                "id": "<uuid>",
+                                "title": "<string>",
+                                "job_image": "<string:image_url>",
+                                "recruiter": "<string>",
+                            }
+                        }
+                    )
+                ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"application/json"},
                 description="Job not found",
+                examples=[
+                    OpenApiExample(
+                        name="Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "Job not found",
+                            "code": "non-existent",
+                        }
+                    )
+                ]
             ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Missing required parameters",
-            )
         }
     )
+    @transaction.atomic()
     def update(self, request, *args, **kwargs):
         vacancy_id = self.kwargs.get('id')
-        if vacancy_id is None:
-            return CustomResponse.error(message="Missing required parameters", status_code=status.HTTP_400_BAD_REQUEST)
 
         try:
             job_instance = Job.objects.get(id=vacancy_id, recruiter=request.user)
         except Job.DoesNotExist:
-            return CustomResponse.error(message="Job not found", status_code=status.HTTP_404_NOT_FOUND)
+            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Job not found",
+                               status_code=status.HTTP_404_NOT_FOUND)
 
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -1072,28 +1163,35 @@ class UpdateDeleteVacancyView(APIView):
         tags=['Job (Recruiter)'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
+                response={"status": "success", "message": "Successfully deleted a job"},
                 description="Successfully deleted a job",
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"application/json"},
                 description="Job not found",
+                examples=[
+                    OpenApiExample(
+                        name="Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "Job not found",
+                            "code": "non-existent",
+                        }
+                    )
+                ]
             ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Missing required parameters",
-            )
         }
     )
     def delete(self, request, *args, **kwargs):
         vacancy_id = self.kwargs.get('id')
-        if vacancy_id is None:
-            return CustomResponse.error(message="Missing required parameters", status_code=status.HTTP_400_BAD_REQUEST)
 
         try:
             job_instance = Job.objects.get(id=vacancy_id, recruiter=request.user)
         except Job.DoesNotExist:
-            return CustomResponse.error(message="Job not found", status_code=status.HTTP_404_NOT_FOUND)
+            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Job not found",
+                               status_code=status.HTTP_404_NOT_FOUND)
 
         job_instance.delete()
-
         return CustomResponse.success(message="Successfully deleted a job")
 
 
@@ -1110,25 +1208,53 @@ class UpdateAppliedJobView(APIView):
         request=UpdateAppliedJobSerializer,
         responses={
             status.HTTP_202_ACCEPTED: OpenApiResponse(
+                response={"application/json"},
                 description="Successfully updated an applied job",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully updated an applied job",
+                            "data": {
+                                "id": "<uuid>",
+                                "job_id": "<uuid>",
+                                "applicant": "<string>",
+                                "applicant_image": "<string:image_url>",
+                                "cv": "<cv_url>",
+                                "status": "<string>",
+                                "review": "<string>",
+                                "interview_date": "<date>",
+                            }
+                        }
+                    )
+                ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"application/json"},
                 description="No application with this ID",
+                examples=[
+                    OpenApiExample(
+                        name="Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "No application with this ID",
+                            "code": "non-existent",
+                        }
+                    )
+                ]
             ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Missing required parameters",
-            )
         }
     )
+    @transaction.atomic()
     def patch(self, request, *args, **kwargs):
         applied_job_id = self.kwargs.get('id')
-        if applied_job_id is None:
-            return CustomResponse.error(message="Missing required parameters", status_code=status.HTTP_400_BAD_REQUEST)
 
         try:
             applied_job = AppliedJob.objects.get(id=applied_job_id, job__recruiter=request.user)
         except AppliedJob.DoesNotExist:
-            return CustomResponse.error(message="No application with this ID", status_code=status.HTTP_404_NOT_FOUND)
+            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="No application with this ID",
+                               status_code=status.HTTP_404_NOT_FOUND)
 
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
