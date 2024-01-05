@@ -14,11 +14,13 @@ class RetrieveAllNotificationsView(APIView):
 
     @extend_schema(
         summary="Retrieve all notifications",
-        description="""This endpoint allows an authenticated user to retrieve all their notifications
+        description=(
+                """This endpoint allows an authenticated user to retrieve all their notifications
             
-            ```AVAILABLE_NOTIFICATION_TYPES: PROFILE_UPDATED, COMPLETE_PROFILE, APPLICATION_SCHEDULED_FOR_INTERVIEW, 
-            JOB_APPLIED, NEW_JOB_AVAILABLE, APPLICATION_ACCEPTED, APPLICATION_REJECTED``` 
-        """,
+                ```AVAILABLE_NOTIFICATION_TYPES: PROFILE_UPDATED, COMPLETE_PROFILE, APPLICATION_SCHEDULED_FOR_INTERVIEW, 
+                JOB_APPLIED, NEW_JOB_AVAILABLE, APPLICATION_ACCEPTED, APPLICATION_REJECTED``` 
+                """
+        ),
         tags=['Notification'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(

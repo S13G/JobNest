@@ -3,7 +3,7 @@ from django.db import transaction
 from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter, OpenApiExample
 from rest_framework import status
 from rest_framework.views import APIView
 
@@ -14,7 +14,8 @@ from apps.common.responses import CustomResponse
 from apps.jobs.choices import STATUS_PENDING, STATUS_ACCEPTED, STATUS_REJECTED, STATUS_SCHEDULED_FOR_INTERVIEW
 from apps.jobs.filters import JobFilter, AppliedJobFilter, VacanciesFilter
 from apps.jobs.models import Job, JobType, AppliedJob, SavedJob, JobRequirement
-from apps.jobs.serializers import CreateJobSerializer, UpdateVacanciesSerializer, UpdateAppliedJobSerializer
+from apps.jobs.serializers import CreateJobSerializer, UpdateVacanciesSerializer, UpdateAppliedJobSerializer, \
+    JobApplySerializer
 from apps.misc.models import Tip
 from apps.notification.choices import NOTIFICATION_JOB_APPLIED, NOTIFICATION_APPLICATION_ACCEPTED, \
     NOTIFICATION_APPLICATION_REJECTED, NOTIFICATION_APPLICATION_SCHEDULED_FOR_INTERVIEW
@@ -37,22 +38,48 @@ class SearchJobsView(APIView):
         tags=['Job Seeker Home'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
+                response={"application/json"},
                 description="Successfully retrieved searched jobs",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully retrieved searched jobs",
+                            "data": [
+                                {
+                                    "id": "<uuid>",
+                                    "title": "<string>",
+                                    "recruiter": "<string>",
+                                    "job_image": "<string:image_url>",
+                                    "location": "<string>",
+                                    "type": "<string>",
+                                    "salary": "<decimal or float>",
+                                    "is_saved": "<bool>",
+                                }
+                            ]
+                        }
+                    )
+                ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"application/json"},
                 description="No jobs found",
+                examples=[
+                    OpenApiExample(
+                        name="Not found",
+                        value={
+                            "status": "failure",
+                            "message": "No jobs found",
+                            "code": "non_existent"
+                        }
+                    )
+                ]
             ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Missing required parameters",
-            )
         }
     )
     def get(self, request, *args, **kwargs):
-        search = self.request.query_params.get('search', None)
-
-        if search is None:
-            raise RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="Missing required parameters", data={},
-                               status_code=status.HTTP_400_BAD_REQUEST)
+        search = self.request.query_params.get('search')
 
         try:
             jobs = Job.objects.filter(
@@ -76,7 +103,8 @@ class SearchJobsView(APIView):
             return CustomResponse.success(message="Successfully retrieved searched jobs", data=data)
 
         except Job.DoesNotExist:
-            return CustomResponse.success(message="No jobs found", data=None)
+            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="No jobs found",
+                               status_code=status.HTTP_404_NOT_FOUND)
 
 
 class JobsHomeView(APIView):
@@ -99,7 +127,39 @@ class JobsHomeView(APIView):
         tags=["Job Seeker Home"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
-                response="Retrieved successfully"
+                response={"application/json"},
+                description="Retrieved successfully",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "profile_name": "<string>",
+                            "tip": {
+                                "id": "<uuid>",
+                                "title": "<string>",
+                                "author_image": "<string:image_url>",
+                            },
+                            "job_types": [
+                                {
+                                    "id": "<uuid>",
+                                    "name": "<string>"
+                                },
+                            ],
+                            "jobs": [
+                                {
+                                    "id": "<uuid>",
+                                    "title": "<string>",
+                                    "recruiter": "<string>",
+                                    "job_image": "<string:image_url>",
+                                    "location": "<string>",
+                                    "type": "<string>",
+                                    "salary": "<decimal or float>",
+                                    "is_saved": "<bool>",
+                                },
+                            ]
+                        }
+                    )
+                ]
             )
         }
     )
@@ -147,28 +207,55 @@ class JobDetailsView(APIView):
         summary="Get single job",
         description=(
                 """
-                Get single job: Retrieve a single job
+                This endpoint allows an authenticated job seeker to retrieve a single job using the id passed in the path parameter.
                 """
         ),
         tags=["Job (Seeker)"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
-                response="Successfully retrieved job details"
+                response={"application/json"},
+                description="Successfully retrieved job details",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "id": "<uuid>",
+                            "title": "<string>",
+                            "recruiter": "<string>",
+                            "job_image": "<string:image_url>",
+                            "location": "<string>",
+                            "type": "<string>",
+                            "salary": "<decimal or float>",
+                            "is_saved": "<bool>",
+                            "requirements": [
+                                {
+                                    "id": "<uuid>",
+                                    "requirement": "<string>"
+                                },
+                            ],
+                            "url": "<string>"
+                        }
+                    )
+                ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"application/json"},
                 description="Job with this id does not exist",
-            ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Missing required parameters",
+                examples=[
+                    OpenApiExample(
+                        name="Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "Job with this id does not exist",
+                            "code": "non_existent",
+                        }
+                    )
+                ]
             )
         }
     )
     def get(self, request, *args, **kwargs):
-        job_id = self.kwargs.get('id', None)
-
-        if job_id is None:
-            raise RequestError(ErrorCode.INVALID_ENTRY, err_msg="Missing required parameters", data={},
-                               status_code=status.HTTP_400_BAD_REQUEST)
+        job_id = self.kwargs.get('id')
 
         try:
             job = Job.objects.get(id=job_id)
@@ -192,74 +279,75 @@ class JobDetailsView(APIView):
             }
             return CustomResponse.success(message="Successfully retrieved job details", data=data)
         except Job.DoesNotExist:
-            return CustomResponse.success(message="Job with this id does not exist", data=None,
-                                          status_code=status.HTTP_404_NOT_FOUND)
+            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Job with this id does not exist",
+                               status_code=status.HTTP_404_NOT_FOUND)
 
 
 class JobApplyView(APIView):
     permission_classes = (IsAuthenticatedEmployee,)
+    serializer_class = JobApplySerializer
 
     @extend_schema(
         summary="Apply for a job",
         description=(
                 """
-                This endpoint allows a authenticated user to apply for a job
+                This endpoint allows a authenticated user to apply for a job by passing the id of the job in the path parameter,
+                and also pass in the required fields in the request body. ``CV: File``: Only accepts ``.pdf``, ``.doc`` and ``.docx`` files
                 """
         ),
+        request=JobApplySerializer,
         tags=["Job (Seeker)"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 response="Successfully applied for job"
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"application/json"},
                 description="Job with this id does not exist",
-            ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Missing required parameters or upload a cv",
-            ),
-            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE: OpenApiResponse(
-                description="Unsupported file type. Only PDF and DOC files are accepted.",
-            ),
-            status.HTTP_500_INTERNAL_SERVER_ERROR: OpenApiResponse(
-                description="Internal server error",
+                examples=[
+                    OpenApiExample(
+                        name="Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "Job with this id does not exist",
+                            "code": "non_existent",
+                        }
+                    )
+                ]
             ),
             status.HTTP_409_CONFLICT: OpenApiResponse(
+                response={"application/json"},
                 description="Already applied for this job",
+                examples=[
+                    OpenApiExample(
+                        name="Conflict Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "Already applied for this job",
+                            "code": "already_exists",
+                        }
+                    )
+                ]
             )
         }
     )
     @transaction.atomic()
     def post(self, request, *args, **kwargs):
-        job_id = self.kwargs.get('id', None)
-        cv = request.FILES.get('cv', None)
-
-        if job_id is None:
-            raise RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="Missing required parameters", data={},
-                               status_code=status.HTTP_400_BAD_REQUEST)
-
-        if cv is None:
-            raise RequestError(err_code=ErrorCode.OTHER_ERROR, err_msg="Upload a cv", data={},
-                               status_code=status.HTTP_400_BAD_REQUEST)
-
-        # Check if the uploaded file is a PDF or DOC
-        valid_extensions = ['pdf', 'doc', 'docx']
-        file_extension = cv.name.split('.')[-1].lower()
-        if file_extension not in valid_extensions:
-            raise RequestError(err_code=ErrorCode.OTHER_ERROR,
-                               err_msg="Unsupported file type. Only PDF and DOC files are accepted.",
-                               status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+        job_id = self.kwargs.get('id')
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
         job = Job.objects.get(id=job_id)  # Try to get the job
 
         if job is None:
-            raise RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="Job with this id does not exist", data={},
+            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Job with this id does not exist", data={},
                                status_code=status.HTTP_404_NOT_FOUND)
 
         # Check if the user has already applied to the job and their application is still pending
         existing_pending_application = AppliedJob.objects.filter(job=job, user=request.user,
                                                                  status=STATUS_PENDING).exists()
         if existing_pending_application:
-            raise RequestError(err_code=ErrorCode.INVALID_ENTRY,
+            raise RequestError(err_code=ErrorCode.ALREADY_EXISTS,
                                err_msg="You have already applied to this job and your application is still pending.",
                                data={}, status_code=status.HTTP_409_CONFLICT)
 
@@ -267,11 +355,12 @@ class JobApplyView(APIView):
         existing_accepted_application = AppliedJob.objects.filter(job=job, user=request.user,
                                                                   status=STATUS_ACCEPTED).exists()
         if existing_accepted_application:
-            raise RequestError(err_code=ErrorCode.INVALID_ENTRY,
+            raise RequestError(err_code=ErrorCode.ALREADY_EXISTS,
                                err_msg="You have already applied to this job and your application has been accepted.",
                                data={}, status_code=status.HTTP_409_CONFLICT)
 
-        AppliedJob.objects.create(job=job, cv=cv, user=request.user)  # create the applied job
+        AppliedJob.objects.create(job=job, cv=serializer.validated_data.get("cv"),
+                                  user=request.user)  # create the applied job
 
         Notification.objects.create(user=request.user, notification_type=NOTIFICATION_JOB_APPLIED,
                                     message="You have applied for a job")
@@ -293,22 +382,47 @@ class AppliedJobsSearchView(APIView):
         tags=['Job (Seeker)'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
+                response={"application/json"},
                 description="Successfully retrieved searched applied jobs",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully retrieved searched applied jobs",
+                            "data": [
+                                {
+                                    "id": "<uuid>",
+                                    "title": "Software Developer",
+                                    "recruiter": "Google",
+                                    "job_image": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
+                                    "location": "New York",
+                                    "type": "Full-time",
+                                    "status": "PENDING",
+                                }
+                            ]
+                        }
+                    )
+                ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"application/json"},
                 description="No applied jobs found",
+                examples=[
+                    OpenApiExample(
+                        name="Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "No applied jobs found",
+                            "code": "non_existent",
+                        }
+                    )
+                ]
             ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Missing required parameters",
-            )
         }
     )
     def get(self, request, *args, **kwargs):
-        search = self.request.query_params.get('search', None)
-
-        if search is None:
-            raise RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="Missing required parameters", data={},
-                               status_code=status.HTTP_400_BAD_REQUEST)
+        search = self.request.query_params.get('search')
 
         try:
             applied_jobs = AppliedJob.objects.filter(
@@ -330,7 +444,7 @@ class AppliedJobsSearchView(APIView):
             return CustomResponse.success(message="Successfully retrieved searched applied jobs", data=data)
 
         except AppliedJob.DoesNotExist:
-            return CustomResponse.success(message="No applied jobs found", data=None)
+            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="No applied jobs found", data={}, )
 
 
 class AppliedJobDetailsView(APIView):
@@ -340,47 +454,72 @@ class AppliedJobDetailsView(APIView):
         summary="Get applied job details",
         description=(
                 """
-                Get single applied job: Retrieve the details of the applied job, pass in the `id` of the applied job to the path parameter.
+                This endpoint allows an authenticated job seeker to retrieve the details of the applied job, 
+                you can pass in the `id` of the applied job to the path parameter.
                 """
         ),
         tags=["Job  (Seeker)"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
-                response="Successfully retrieved job details",
+                response={"application/json"},
+                description="Successfully retrieved applied job details",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully retrieved applied job details",
+                            "data": {
+                                "id": "<uuid>",
+                                "title": "Software Developer",
+                                "recruiter": "Google",
+                                "job_image": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
+                                "location": "New York",
+                                "type": "Full Time",
+                                "status": "PENDING",
+                                "review": "<string>",
+
+                            }
+                        }
+                    )
+                ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"application/json"},
                 description="Applied job with this id does not exist",
+                examples=[
+                    OpenApiExample(
+                        name="Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "Applied job with this id does not exist",
+                            "code": "non_existent",
+                        }
+                    )
+                ]
             ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Missing required parameters",
-            )
         }
     )
     def get(self, request, *args, **kwargs):
-        applied_job_id = self.kwargs.get('id', None)
+        applied_job_id = self.kwargs.get('id')
 
-        if applied_job_id is None:
-            raise RequestError(ErrorCode.INVALID_ENTRY, err_msg="Missing required parameters", data={},
-                               status_code=status.HTTP_400_BAD_REQUEST)
+        applied_job = AppliedJob.objects.get(id=applied_job_id)
 
-        try:
-            applied_job = AppliedJob.objects.get(id=applied_job_id)
+        if applied_job is None:
+            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Applied job with this id does not exist")
 
-            data = {
-                "id": applied_job.id,
-                "title": applied_job.job.title,
-                "recruiter": applied_job.job.recruiter.company_profile.name,
-                "job_image": applied_job.job.image_url,
-                "location": pycountry.countries.get(alpha_2=applied_job.job.location).name,
-                "type": applied_job.job.type.name,
-                "salary": applied_job.job.salary,
-                "status": applied_job.status,
-                "review": applied_job.review,
-            }
-            return CustomResponse.success(message="Successfully retrieved job details", data=data)
-        except AppliedJob.DoesNotExist:
-            return CustomResponse.success(message="Applied job with this id does not exist", data=None,
-                                          status_code=status.HTTP_404_NOT_FOUND)
+        data = {
+            "id": applied_job.id,
+            "title": applied_job.job.title,
+            "recruiter": applied_job.job.recruiter.company_profile.name,
+            "job_image": applied_job.job.image_url,
+            "location": pycountry.countries.get(alpha_2=applied_job.job.location).name,
+            "type": applied_job.job.type.name,
+            "salary": applied_job.job.salary,
+            "status": applied_job.status,
+            "review": applied_job.review,
+        }
+        return CustomResponse.success(message="Successfully retrieved applied job details", data=data)
 
 
 class FilterAppliedJobsView(APIView):
@@ -392,7 +531,7 @@ class FilterAppliedJobsView(APIView):
         summary="Get all applications and filter",
         description=(
                 """
-                This endpoint gets all applications the authenticated user has applied to with some filters option
+                This endpoint gets all applications the authenticated job seeker has applied to with some filters option
                 """
         ),
         parameters=[
@@ -401,29 +540,49 @@ class FilterAppliedJobsView(APIView):
         tags=["Job  (Seeker)"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
-                response="Retrieved successfully"
+                response={"application/json"},
+                description="Retrieved successfully",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Retrieved successfully",
+                            "data": [
+                                {
+                                    "id": "<uuid>",
+                                    "title": "Software Developer",
+                                    "recruiter": "Google",
+                                    "job_image": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
+                                    "status": "PENDING",
+                                    "location": "New York",
+                                    "type": "Full Time",
+                                    "review": "<string>",
+                                }
+                            ]
+                        }
+                    )
+                ]
             )
         }
     )
     def get(self, request):
         queryset = AppliedJob.objects.all().order_by('-created')
         queryset = self.filterset_class(data=request.GET, queryset=queryset).qs
-        data = {
-            "applications": [
-                {
-                    "id": application.id,
-                    "title": application.job.title,
-                    "recruiter": application.job.recruiter.company_profile.name,
-                    "job_image": application.job.image_url,
-                    "status": application.status,
-                    "salary": application.salary,
-                    "type": application.type.name,
-                    "location": application.job.location,
-                    "review": application.review
-                }
-                for application in queryset
-            ]
-        }
+        data = [
+            {
+                "id": application.id,
+                "title": application.job.title,
+                "recruiter": application.job.recruiter.company_profile.name,
+                "job_image": application.job.image_url,
+                "status": application.status,
+                "salary": application.salary,
+                "location": application.job.location,
+                "type": application.type.name,
+                "review": application.review
+            }
+            for application in queryset
+        ]
         return CustomResponse.success(message="Retrieved successfully", data=data)
 
 
@@ -434,38 +593,77 @@ class CreateDeleteSavedJobsView(APIView):
         summary="Create saved job",
         description=(
                 """
-                Create saved job: Create a saved job, pass in the `id` of the job to the path parameter.
+                This endpoint allows a job seeker to create a saved job, pass in the `id` of the job to the path parameter.
                 """
         ),
         tags=["Job (Seeker)"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
-                response="Successfully created saved job",
+                response={"application/json"},
+                description="Successfully saved job",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully saved job",
+                            "data": {
+                                "id": "<uuid>",
+                                "job_id": "<uuid>",
+                                "title": "Software Developer",
+                                "recruiter": "Google",
+                                "job_image": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
+                                "location": "New York",
+                                "type": "Full Time",
+                                "salary": "<decimal or float>",
+                                "is_saved": "<bool>"
+                            }
+                        }
+                    )
+                ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"application/json"},
                 description="Job with this id does not exist",
+                examples=[
+                    OpenApiExample(
+                        name="Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "Job with this id does not exist",
+                            "code": "non_existent",
+                        }
+                    )
+                ]
             ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Missing required parameters",
+            status.HTTP_409_CONFLICT: OpenApiResponse(
+                response={"application/json"},
+                description="Job is already saved",
+                examples=[
+                    OpenApiExample(
+                        name="Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "Job is already saved",
+                            "code": "already_exists",
+                        }
+                    )
+                ]
             )
         }
     )
     @transaction.atomic()
     def post(self, request, *args, **kwargs):
-        job_id = self.kwargs.get('id', None)
-
-        if job_id is None:
-            raise RequestError(ErrorCode.INVALID_ENTRY, err_msg="Missing required parameters", data={},
-                               status_code=status.HTTP_400_BAD_REQUEST)
-
+        job_id = self.kwargs.get('id')
         job = Job.objects.get(id=job_id)
+
         if job is None:
-            raise RequestError(ErrorCode.INVALID_ENTRY, err_msg="Job with this id does not exist", data={},
+            raise RequestError(ErrorCode.NON_EXISTENT, err_msg="Job with this id does not exist", data={},
                                status_code=status.HTTP_404_NOT_FOUND)
 
         if job.is_saved_by_user(request.user):
-            raise RequestError(ErrorCode.INVALID_ENTRY, err_msg="Job is already saved", data={},
-                               status_code=status.HTTP_400_BAD_REQUEST)
+            raise RequestError(ErrorCode.ALREADY_EXISTS, err_msg="Job is already saved", data={},
+                               status_code=status.HTTP_409_CONFLICT)
 
         saved_job = SavedJob.objects.create(job=job, user=request.user)
         data = {
@@ -479,38 +677,52 @@ class CreateDeleteSavedJobsView(APIView):
             "salary": saved_job.job.salary,
             "is_saved": saved_job.job.is_saved_by_user(request.user)
         }
-        return CustomResponse.success(message="Successfully created saved job", data=data)
+        return CustomResponse.success(message="Successfully saved job", data=data)
 
     @extend_schema(
         summary="Delete saved job",
         description=(
                 """
-                Delete saved job: Delete a saved job, pass in the `id` of the saved job to the path parameter.
+                This endpoint allows a job seeker to delete a saved job, pass in the `id` of the saved job to the path parameter.
                 """
         ),
         tags=["Job (Seeker)"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
-                response="Successfully deleted saved job",
+                response={"status": "success", "message": "Successfully deleted saved job"},
+                description="Successfully deleted saved job",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully deleted saved job",
+                        }
+                    )
+                ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"status": "failure", "message": "Saved job with this id does not exist"},
                 description="Saved job with this id does not exist",
+                examples=[
+                    OpenApiExample(
+                        name="Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "Saved job with this id does not exist",
+                        }
+                    )
+                ]
             ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Missing required parameters",
-            )
         }
     )
     def delete(self, request, *args, **kwargs):
-        saved_job_id = self.kwargs.get('id', None)
-
-        if saved_job_id is None:
-            raise RequestError(ErrorCode.INVALID_ENTRY, err_msg="Missing required parameters", data={},
-                               status_code=status.HTTP_400_BAD_REQUEST)
+        saved_job_id = self.kwargs.get('id')
 
         saved_job = SavedJob.objects.get(id=saved_job_id, user=request.user)
+
         if saved_job is None:
-            raise RequestError(ErrorCode.INVALID_ENTRY, err_msg="Saved job with this id does not exist", data={},
+            raise RequestError(ErrorCode.NON_EXISTENT, err_msg="Saved job with this id does not exist", data={},
                                status_code=status.HTTP_404_NOT_FOUND)
 
         saved_job.delete()
@@ -524,14 +736,35 @@ class RetrieveAllSavedJobsView(APIView):
         summary="Get saved jobs",
         description=(
                 """
-                Get saved jobs: Get a list of saved jobs.
+                Retrieve all saved jobs: This endpoint allows a job seeker to get a list of saved jobs.
                 `P.S`: Use the job id to get the details of the job using the job details endpoint.
                 """
         ),
         tags=["Job (Seeker)"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
-                response="Successfully retrieved saved jobs",
+                response={"application/json"},
+                description="Successfully retrieved saved job",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully retrieved saved job",
+                            "data": {
+                                "id": "<uuid>",
+                                "job_id": "<uuid>",
+                                "title": "Software Developer",
+                                "recruiter": "Google",
+                                "job_image": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
+                                "location": "New York",
+                                "type": "Full Time",
+                                "salary": "<decimal or float>",
+                                "is_saved": "<bool>"
+                            }
+                        }
+                    )
+                ]
             ),
         }
     )
@@ -570,22 +803,47 @@ class SearchVacanciesView(APIView):
         tags=['Job Recruiter Home'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
+                response={"application/json"},
                 description="Successfully retrieved posted vacancies",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully retrieved posted vacancies",
+                            "data": [
+                                {
+                                    "id": "<uuid>",
+                                    "title": "Software Developer",
+                                    "recruiter": "Google",
+                                    "job_image": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
+                                    "location": "New York",
+                                    "type": "Full Time",
+                                    "salary": "<decimal or float>",
+                                    "active": "<bool>",
+                                },
+                            ]
+                        }
+                    )
+                ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"status": "failure", "message": "No vacancies found"},
                 description="No vacancies found",
+                examples=[
+                    OpenApiExample(
+                        name="Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "No vacancies found",
+                        }
+                    )
+                ]
             ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Missing required parameters",
-            )
         }
     )
     def get(self, request, *args, **kwargs):
-        search = self.request.query_params.get('search', None)
-
-        if search is None:
-            raise RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="Missing required parameters", data={},
-                               status_code=status.HTTP_400_BAD_REQUEST)
+        search = self.request.query_params.get('search')
 
         try:
             jobs = Job.objects.filter(
@@ -608,7 +866,8 @@ class SearchVacanciesView(APIView):
             ]
             return CustomResponse.success(message="Successfully retrieved searched vacancies", data=data)
         except Job.DoesNotExist:
-            return CustomResponse.success(message="No jobs found", data=None)
+            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="No vacancies found",
+                               status_code=status.HTTP_404_NOT_FOUND)
 
 
 class VacanciesHomeView(APIView):
@@ -909,5 +1168,3 @@ class UpdateAppliedJobView(APIView):
         }
 
         return CustomResponse.success(message="Successfully updated an applied job", data=data)
-
-

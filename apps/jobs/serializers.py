@@ -1,4 +1,5 @@
 import pycountry
+from django.core.validators import FileExtensionValidator
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -40,3 +41,7 @@ class UpdateAppliedJobSerializer(serializers.Serializer):
         if interview_date and interview_date < timezone.now():
             raise serializers.ValidationError("You can't schedule an interview less than the current time!")
         return data
+
+
+class JobApplySerializer(serializers.Serializer):
+    cv = serializers.FileField(validators=[FileExtensionValidator(allowed_extensions=['pdf', 'doc', 'docx'])])

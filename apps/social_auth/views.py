@@ -13,12 +13,16 @@ class JobSeekerGoogleSocialAuthView(GenericAPIView):
 
     @extend_schema(
         summary="Google Authentication Endpoint for registering and logging in Job Seeker profile",
-        description="This endpoint allows users to authenticate through Google and automatically creates a job seeker profile for them",
+        description=(
+                """
+                This endpoint allows users to authenticate through Google and automatically creates a job seeker profile for them if it doesn't exist.
+                """
+        ),
         request=JobSeekerGoogleSocialAuthSerializer,
         tags=['Social Authentication'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
-                response={"application/json": {"tokens": {}, "data": {}}},
+                response={"application/json"},
                 description="Success",
                 examples=[
                     OpenApiExample(
@@ -90,12 +94,16 @@ class JobRecruiterGoogleSocialAuthView(GenericAPIView):
 
     @extend_schema(
         summary="Google Authentication Endpoint for registering and logging in Job recruiter profile",
-        description="This endpoint allows users to authenticate through Google and automatically creates a job seeker profile for them",
+        description=(
+                """
+                This endpoint allows users to authenticate through Google and automatically creates a job seeker profile for them if it doesn't exist.
+                """
+        ),
         request=JobRecruiterGoogleSocialAuthSerializer,
         tags=['Social Authentication'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
-                response={"application/json": {"tokens": {}, "data": {}}},
+                response={"application/json"},
                 description="Success",
                 examples=[
                     OpenApiExample(
@@ -126,7 +134,7 @@ class JobRecruiterGoogleSocialAuthView(GenericAPIView):
                 ]
             ),
             status.HTTP_409_CONFLICT: OpenApiResponse(
-                response={"application/json": {}},
+                response={"application/json"},
                 description="Conflict",
                 examples=[
                     OpenApiExample(

@@ -65,7 +65,7 @@ class RetrieveTipView(APIView):
                 response=TipSerializer
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                response={"application/json": {}},
+                response={"application/json"},
                 description="No tip found for this id",
                 examples=[
                     OpenApiExample(
@@ -77,29 +77,11 @@ class RetrieveTipView(APIView):
                         }
                     )
                 ]
-            ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                response={"application/json": {}},
-                description="Tip id is required",
-                examples=[
-                    OpenApiExample(
-                        name="Invalid entry",
-                        value={
-                            "status": "failure",
-                            "message": "Tip id is required",
-                            "code": "invalid_entry"
-                        }
-                    )
-                ]
             )
         }
     )
     def get(self, request, *args, **kwargs):
         tip_id = self.kwargs.get('tip_id')
-
-        if not tip_id:
-            raise RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="Tip id is required",
-                               status_code=status.HTTP_400_BAD_REQUEST)
 
         try:
             tip = Tip.objects.get(id=tip_id)
@@ -124,7 +106,7 @@ class RetrieveAllFAQTypesView(APIView):
         tags=['FAQs'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
-                response={"application/json": {}},
+                response={"application/json"},
                 description="FAQ types retrieved successfully",
                 examples=[
                     OpenApiExample(
@@ -170,6 +152,10 @@ class FilterAllFAQsView(APIView):
         description=(
                 """
                 This endpoint allows a user to filter all FAQs.
+                
+                ```MAKE SURE YOU CALL THE RETRIEVE ALL FAQs TYPES ENDPOINT BEFORE CALLING THIS ENDPOINT```
+                
+                So you'll know which filter exists and you must pass them the same way(case sensitive) to the query string.
                 """
         ),
         tags=['FAQs'],
@@ -178,7 +164,6 @@ class FilterAllFAQsView(APIView):
         ],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
-                response={"application/json": {}},
                 description="FAQs filtered successfully",
                 examples=[
                     OpenApiExample(
