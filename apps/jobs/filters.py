@@ -10,8 +10,8 @@ class JobFilter(FilterSet):
         lookup_expr='icontains',
         choices=lambda: [(type_obj.name, type_obj.name) for type_obj in JobType.objects.all()]
     )
-    salary_min = filters.NumericRangeFilter(field_name='salary', lookup_expr='gte')
-    salary_max = filters.NumericRangeFilter(field_name='salary', lookup_expr='lte')
+    salary_min = filters.NumberFilter(field_name='salary', lookup_expr='gte')
+    salary_max = filters.NumberFilter(field_name='salary', lookup_expr='lte')
     location = filters.CharFilter(field_name='location', lookup_expr='icontains')
 
 

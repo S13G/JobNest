@@ -92,6 +92,7 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.UserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {"anon": "5000/day", "user": "10000/day"},
+    "NON_FIELD_ERRORS_KEY": "error",
 }
 
 CORS_ALLOW_HEADERS = (

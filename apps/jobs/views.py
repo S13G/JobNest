@@ -5,6 +5,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter, OpenApiExample
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.common.errors import ErrorCode
@@ -33,7 +34,9 @@ class SearchJobsView(APIView):
             OpenApiParameter(name="search", type=OpenApiTypes.STR, required=False)
         ],
         description=(
-                "This endpoint allows an authenticated job seeker to search for jobs"
+                """
+                This endpoint allows an authenticated job seeker to search for jobs
+                """
         ),
         tags=['Job Seeker Home'],
         responses={
@@ -79,7 +82,7 @@ class SearchJobsView(APIView):
         }
     )
     def get(self, request, *args, **kwargs):
-        search = self.request.query_params.get('search')
+        search = self.request.query_params.get('search', '')
 
         try:
             jobs = Job.objects.filter(
@@ -122,7 +125,10 @@ class JobsHomeView(APIView):
         parameters=[
             OpenApiParameter('type', type=OpenApiTypes.STR, required=False, description="Filter jobs by type"),
             OpenApiParameter('location', type=OpenApiTypes.STR, required=False, description="Filter jobs by location"),
-            OpenApiParameter('salary', type=OpenApiTypes.STR, required=False, description="Filter jobs by salary"),
+            OpenApiParameter('salary_min', type=OpenApiTypes.FLOAT, required=False,
+                             description="Filter jobs by salary"),
+            OpenApiParameter('salary_max', type=OpenApiTypes.FLOAT, required=False,
+                             description="Filter jobs by salary"),
         ],
         tags=["Job Seeker Home"],
         responses={
@@ -201,7 +207,7 @@ class JobsHomeView(APIView):
 
 
 class JobDetailsView(APIView):
-    permission_classes = (IsAuthenticatedEmployee,)
+    permission_classes = (IsAuthenticated,)
 
     @extend_schema(
         summary="Get single job",
@@ -377,7 +383,9 @@ class AppliedJobsSearchView(APIView):
             OpenApiParameter(name="search", type=OpenApiTypes.STR, required=False)
         ],
         description=(
-                "This endpoint allows an authenticated job seeker to search for their applied jobs"
+                """
+                This endpoint allows an authenticated job seeker to search for their applied jobs
+                """
         ),
         tags=['Job (Seeker)'],
         responses={
@@ -422,7 +430,7 @@ class AppliedJobsSearchView(APIView):
         }
     )
     def get(self, request, *args, **kwargs):
-        search = self.request.query_params.get('search')
+        search = self.request.query_params.get('search', '')
 
         try:
             applied_jobs = AppliedJob.objects.filter(
@@ -436,7 +444,7 @@ class AppliedJobsSearchView(APIView):
                     "id": single_job.id,
                     "title": single_job.job.title,
                     "recruiter": single_job.job.recruiter.company_profile.name,
-                    "job_image": single_job.image_url,
+                    "job_image": single_job.job.image_url,
                     "status": single_job.status,
                 }
                 for single_job in applied_jobs
@@ -517,7 +525,7 @@ class AppliedJobDetailsView(APIView):
             "type": applied_job.job.type.name,
             "salary": applied_job.job.salary,
             "status": applied_job.status,
-            "review": applied_job.review,
+            "review": applied_job.review or "",
         }
         return CustomResponse.success(message="Successfully retrieved applied job details", data=data)
 
@@ -532,6 +540,8 @@ class FilterAppliedJobsView(APIView):
         description=(
                 """
                 This endpoint gets all applications the authenticated job seeker has applied to with some filters option
+                
+                ```AVAILABLE FILTERS: PENDING, ACCEPTED, REJECTED, SCHEDULED FOR INTERVIEW```
                 """
         ),
         parameters=[
@@ -576,10 +586,10 @@ class FilterAppliedJobsView(APIView):
                 "recruiter": application.job.recruiter.company_profile.name,
                 "job_image": application.job.image_url,
                 "status": application.status,
-                "salary": application.salary,
-                "location": application.job.location,
-                "type": application.type.name,
-                "review": application.review
+                "salary": application.job.salary,
+                "location": pycountry.countries.get(alpha_2=application.job.location).name,
+                "type": application.job.type.name,
+                "review": application.review or "",
             }
             for application in queryset
         ]
@@ -719,9 +729,9 @@ class CreateDeleteSavedJobsView(APIView):
     def delete(self, request, *args, **kwargs):
         saved_job_id = self.kwargs.get('id')
 
-        saved_job = SavedJob.objects.get(id=saved_job_id, user=request.user)
-
-        if saved_job is None:
+        try:
+            saved_job = SavedJob.objects.get(id=saved_job_id, user=request.user)
+        except SavedJob.DoesNotExist:
             raise RequestError(ErrorCode.NON_EXISTENT, err_msg="Saved job with this id does not exist", data={},
                                status_code=status.HTTP_404_NOT_FOUND)
 
@@ -803,7 +813,9 @@ class SearchVacanciesView(APIView):
             OpenApiParameter(name="search", type=OpenApiTypes.STR, required=False)
         ],
         description=(
-                "This endpoint allows an authenticated job recruiter to search for his posted vacancies"
+                """
+                This endpoint allows an authenticated job recruiter to search for his posted vacancies
+                """
         ),
         tags=['Job Recruiter Home'],
         responses={
@@ -881,10 +893,10 @@ class VacanciesHomeView(APIView):
     filterset_class = VacanciesFilter
 
     @extend_schema(
-        summary="Get home page",
+        summary="Recruiter home page",
         description=(
                 """
-                Get home page: Search, Retrieve all job types, and all jobs and also tip including notifications.
+                Get home page for job recruiter. This endpoint allows an authenticated job recruiter to search, Retrieve all vacant jobs, and all applicants that applied to jobs posted by the authenticated job recruiter.
                 """
         ),
         parameters=[
@@ -970,7 +982,9 @@ class RetrieveAllJobTypesView(APIView):
     @extend_schema(
         summary="Retrieve all job types",
         description=(
-                "This endpoint allows an authenticated job recruiter to retrieve all job types"
+                """
+                This endpoint allows an authenticated job recruiter to retrieve all job types
+                """
         ),
         tags=['Job Recruiter Home'],
         responses={
@@ -1014,7 +1028,13 @@ class CreateVacanciesView(APIView):
     @extend_schema(
         summary="Create a new job",
         description=(
-                "This endpoint allows an authenticated job recruiter to create a new job"
+                """
+                This endpoint allows an authenticated job recruiter to create a new job.
+                When creating a new job, assign or pass in the country code to the location not the country full name.#
+                e.g.
+                - UK
+                - US
+                """
         ),
         tags=['Job (Recruiter)'],
         request=CreateJobSerializer,
@@ -1056,7 +1076,7 @@ class CreateVacanciesView(APIView):
         JobRequirement.objects.bulk_create(job_requirements)
 
         data = {
-            "id": created_job,
+            "id": created_job.id,
             "title": created_job.title,
             "job_image": created_job.image_url,
             "recruiter": created_job.recruiter.company_profile.name,
@@ -1073,7 +1093,9 @@ class UpdateDeleteVacancyView(APIView):
     @extend_schema(
         summary="Update a job vacancy",
         description=(
-                "This endpoint allows an authenticated job recruiter to update a job"
+                """
+                This endpoint allows an authenticated job recruiter to update a job, pass in the id as the path parameter
+                """
         ),
         tags=['Job (Recruiter)'],
         request=UpdateVacanciesSerializer,
@@ -1114,7 +1136,7 @@ class UpdateDeleteVacancyView(APIView):
         }
     )
     @transaction.atomic()
-    def update(self, request, *args, **kwargs):
+    def patch(self, request, *args, **kwargs):
         vacancy_id = self.kwargs.get('id')
 
         try:
@@ -1123,7 +1145,7 @@ class UpdateDeleteVacancyView(APIView):
             raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Job not found",
                                status_code=status.HTTP_404_NOT_FOUND)
 
-        serializer = self.serializer_class(data=request.data)
+        serializer = self.serializer_class(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
         requirements_data = serializer.validated_data.pop('requirements', [])
@@ -1158,13 +1180,24 @@ class UpdateDeleteVacancyView(APIView):
     @extend_schema(
         summary="Delete a job",
         description=(
-                "This endpoint allows an authenticated job recruiter to delete a job"
+                """
+                This endpoint allows an authenticated job recruiter to delete a job, pass the applied job id to the path parameter
+                """
         ),
         tags=['Job (Recruiter)'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 response={"status": "success", "message": "Successfully deleted a job"},
                 description="Successfully deleted a job",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully deleted a job",
+                        }
+                    )
+                ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
                 response={"application/json"},
@@ -1202,7 +1235,11 @@ class UpdateAppliedJobView(APIView):
     @extend_schema(
         summary="Update applied job",
         description=(
-                "This endpoint allows an authenticated job seeker to update an applied job"
+                """
+                This endpoint allows an authenticated job seeker to update an applied job
+                
+                ```AVAILABLE FILTERS: PENDING, ACCEPTED, REJECTED, SCHEDULED FOR INTERVIEW```
+                """
         ),
         tags=['Job (Recruiter)'],
         request=UpdateAppliedJobSerializer,
@@ -1267,30 +1304,31 @@ class UpdateAppliedJobView(APIView):
             Notification.objects.create(
                 user=applied_job.user,
                 notification_type=NOTIFICATION_APPLICATION_ACCEPTED,
-                message=f"Your application for {applied_job.job.title} has been accepted!",
+                message=f"Your application for {applied_job.job.title} at {applied_job.job.recruiter.company_profile.name} has been accepted!",
             )
         elif applied_job.status == STATUS_REJECTED:
             Notification.objects.create(
                 user=applied_job.user,
                 notification_type=NOTIFICATION_APPLICATION_REJECTED,
-                message=f"Your application for {applied_job.job.title} has been rejected!",
+                message=f"Your application for {applied_job.job.title} at {applied_job.job.recruiter.company_profile.name} has been rejected!",
             )
+            applied_job.delete()
         elif applied_job.status == STATUS_SCHEDULED_FOR_INTERVIEW:
             Notification.objects.create(
                 user=applied_job.user,
                 notification_type=NOTIFICATION_APPLICATION_SCHEDULED_FOR_INTERVIEW,
-                message=f"Your application for {applied_job.job.title} has been scheduled for an interview!",
+                message=f"Your application for {applied_job.job.title} at {applied_job.job.recruiter.company_profile.name} has been scheduled for an interview!",
             )
 
         data = {
             "id": applied_job.id,
             "job": applied_job.job.title,
             "applicant": applied_job.user.employee_profile.full_name,
-            "applicant_image": applied_job.user.employee_profile.image_url,
+            "applicant_image": applied_job.user.profile_image_url,
             "cv": applied_job.cv.url,
             "status": applied_job.status,
-            "review": applied_job.review,
-            "interview_date": applied_job.interview_date
+            "review": applied_job.review or "",
+            "interview_date": applied_job.interview_date or ""
         }
 
         return CustomResponse.success(message="Successfully updated an applied job", data=data)

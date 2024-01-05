@@ -33,7 +33,7 @@ class HealthCheckView(APIView):
         description="This endpoint checks the health of the API",
         tags=["Health Check"],
     )
-    async def get(self, request):
+    def get(self, request):
         return CustomResponse.success(message="pong")
 
 

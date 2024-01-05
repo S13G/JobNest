@@ -84,7 +84,7 @@ class AppliedJob(BaseModel):
     status = models.CharField(max_length=255, choices=STATUS_CHOICES, null=True, default=STATUS_PENDING)
     interview_date = models.DateTimeField(null=True, blank=True)
 
-    object = AppliedJobManager()
+    objects = AppliedJobManager()
 
     def __str__(self):
         return f"{self.user.email} applied for {self.job.title}"

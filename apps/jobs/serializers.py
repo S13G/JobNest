@@ -36,7 +36,7 @@ class UpdateAppliedJobSerializer(serializers.Serializer):
         interview_date = data.get("interview_date")
 
         if status == STATUS_SCHEDULED_FOR_INTERVIEW and not interview_date:
-            raise serializers.ValidationError("You must enter date for interview!")
+            raise serializers.ValidationError("Interview date is required!")
 
         if interview_date and interview_date < timezone.now():
             raise serializers.ValidationError("You can't schedule an interview less than the current time!")
