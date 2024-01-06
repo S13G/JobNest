@@ -809,6 +809,7 @@ class VerifyForgotPasswordCodeView(APIView):
                         value={
                             "status": "success",
                             "message": "Otp verified successfully",
+                            "data": "<token>"
                         }
                     )
                 ]
@@ -916,7 +917,7 @@ class ChangeForgottenPasswordView(APIView):
         """
         This endpoint allows the unauthenticated user to change their password after requesting for a code.
         The request should include the following data:
-
+        - `token`: Pass in the encrypted token you got from the previous endpoint.
         - `password`: The new password.
         - `confirm_password`: The new password again.
         """,
