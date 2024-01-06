@@ -27,7 +27,7 @@ class User(AbstractBaseUser, BaseModel, PermissionsMixin):
 
     objects = CustomUserManager()
 
-    # Generate JWT tokens for the user
+    # Generate JWT tokens for the user(using this specifically for oauth)
     def tokens(self):
         refresh = RefreshToken.for_user(self)
         return {

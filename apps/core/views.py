@@ -4,7 +4,7 @@ import pyotp
 from django.contrib.auth import authenticate
 from django.db import transaction
 from django.utils import timezone
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.utils import OpenApiResponse, extend_schema, OpenApiExample
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
@@ -56,7 +56,19 @@ class EmployeeRegistrationView(APIView):
                 response=EmployeeProfileSerializer
             ),
             status.HTTP_409_CONFLICT: OpenApiResponse(
-                description="Account already exists and has Employee profile",
+                response={"status": "failure", "message": "Account already exists and has Employee or Company profile",
+                          "code": "already_exists"},
+                description="Account already exists and has Employee or Company profile",
+                examples=[
+                    OpenApiExample(
+                        name="Conflict response",
+                        value={
+                            "status": "failure",
+                            "message": "Account already exists and has Employee or Company profile",
+                            "code": "already_exists"
+                        }
+                    )
+                ]
             ),
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
                 description="Bad request",
@@ -117,7 +129,19 @@ class CompanyRegistrationView(APIView):
                 response=CompanyProfileSerializer
             ),
             status.HTTP_409_CONFLICT: OpenApiResponse(
-                description="Account already exists and has Company profile",
+                response={"status": "failure", "message": "Account already exists and has Employee or Company profile",
+                          "code": "already_exists"},
+                description="Account already exists and has Employee or Company profile",
+                examples=[
+                    OpenApiExample(
+                        name="Conflict response",
+                        value={
+                            "status": "failure",
+                            "message": "Account already exists and has Employee or Company profile",
+                            "code": "already_exists"
+                        }
+                    )
+                ]
             ),
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
                 description="Bad request",
@@ -177,13 +201,77 @@ class VerifyEmailView(APIView):
         tags=['Email Verification'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
+                response={"status": "success", "message": "Email verification successful or already verified."},
                 description="Email verification successful or already verified.",
+                examples=[
+                    OpenApiExample(
+                        name="Success response",
+                        value={
+                            "status": "success",
+                            "message": "Email verification successful"
+                        }
+                    ),
+                    OpenApiExample(
+                        name="Already verified response",
+                        value={
+                            "status": "error",
+                            "message": "Email already verified",
+                            "code": "verified_user"
+                        }
+                    )
+                ]
             ),
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="OTP Error"
+                response={"status": "failure", "message": "Invalid OTP", "code": "incorrect_otp"},
+                description="OTP Error",
+                examples=[
+                    OpenApiExample(
+                        name="Invalid OTP response",
+                        value={
+                            "status": "failure",
+                            "message": "Invalid OTP",
+                            "code": "incorrect_otp"
+                        }
+                    ),
+                    OpenApiExample(
+                        name="Expired OTP response",
+                        value={
+                            "status": "failure",
+                            "message": "OTP has expired",
+                            "code": "expired_otp"
+                        }
+                    )
+                ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                description="User with this email not found or otp not found for user"
+                response={"status": "failure", "message": "Not found", "code": "non_existent"},
+                description="Not found",
+                examples=[
+                    OpenApiExample(
+                        name="Email not found response",
+                        value={
+                            "status": "failure",
+                            "message": "User with this email not found",
+                            "code": "non_existent"
+                        }
+                    ),
+                    OpenApiExample(
+                        name="No otp found response",
+                        value={
+                            "status": "failure",
+                            "message": "No OTP found for this account",
+                            "code": "non_existent"
+                        }
+                    ),
+                    OpenApiExample(
+                        name="No OTP secret found response",
+                        value={
+                            "status": "failure",
+                            "message": "No OTP secret found for this account",
+                            "code": "non_existent"
+                        }
+                    )
+                ]
             )
         }
     )
@@ -246,10 +334,40 @@ class ResendEmailVerificationCodeView(APIView):
         tags=['Email Verification'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
-                description="Verification code sent successfully. Please check your mail. or Email verified already.",
+                response={"status": "success",
+                          "message": "Verification code sent successfully. Please check your mail."},
+                description="Verification code sent successfully. Please check your mail.",
+                examples=[
+                    OpenApiExample(
+                        name="Verification successful response",
+                        value={
+                            "status": "success",
+                            "message": "Verification code sent successfully. Please check your mail."
+                        }
+                    ),
+                    OpenApiExample(
+                        name="Already verified response",
+                        value={
+                            "status": "error",
+                            "message": "Email already verified",
+                            "error_code": "already_verified"
+                        }
+                    )
+                ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                description="User with this email not found"
+                response={"status": "failure", "message": "User with this email not found", "code": "non_existent"},
+                description="User with this email not found",
+                examples=[
+                    OpenApiExample(
+                        name="Email not found response",
+                        value={
+                            "status": "failure",
+                            "message": "User with this email not found",
+                            "code": "non_existent"
+                        }
+                    )
+                ]
             )
         }
     )
@@ -287,10 +405,33 @@ class SendNewEmailVerificationCodeView(APIView):
         tags=['Email Change'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
+                response={"status": "success",
+                          "message": "Verification code sent successfully. Please check your new email."},
                 description="Verification code sent successfully. Please check your new email.",
+                examples=[
+                    OpenApiExample(
+                        name="Verification successful response",
+                        value={
+                            "status": "success",
+                            "message": "Verification code sent successfully. Please check your new email."
+                        }
+                    )
+                ]
             ),
             status.HTTP_409_CONFLICT: OpenApiResponse(
-                description="Account with this email already exists"
+                response={"status": "failure", "message": "Account with this email already exists",
+                          "code": "already_exists"},
+                description="Account with this email already exists",
+                examples=[
+                    OpenApiExample(
+                        name="Conflict response",
+                        value={
+                            "status": "failure",
+                            "message": "Account with this email already exists",
+                            "code": "already_exists"
+                        }
+                    )
+                ]
             )
         }
     )
@@ -326,14 +467,69 @@ class ChangeEmailView(APIView):
         tags=['Email Change'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
+                response={"status": "success", "message": "Email changed successfully."},
                 description="Email changed successfully.",
+                examples=[
+                    OpenApiExample(
+                        name="Successful response",
+                        value={
+                            "status": "success",
+                            "message": "Email changed successfully."
+                        }
+                    )
+                ]
             ),
-            status.HTTP_409_CONFLICT: OpenApiResponse(
-                description="You can't use your previous email"
+            status.HTTP_403_FORBIDDEN: OpenApiResponse(
+                response={"status": "failure", "message": "You can't use your previous email", "code": "old_email"},
+                description="You can't use your previous email",
+                examples=[
+                    OpenApiExample(
+                        name="Old email response",
+                        value={
+                            "status": "failure",
+                            "message": "You can't use your previous email",
+                            "code": "old_email"
+                        }
+                    )
+                ]
             ),
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="OTP Error"
+                response={"status": "failure", "message": "Invalid OTP", "code": "incorrect_otp"},
+                description="OTP Error",
+                examples=[
+                    OpenApiExample(
+                        name="Invalid OTP response",
+                        value={
+                            "status": "failure",
+                            "message": "Invalid OTP",
+                            "code": "incorrect_otp"
+                        }
+                    ),
+                    OpenApiExample(
+                        name="Expired OTP response",
+                        value={
+                            "status": "failure",
+                            "message": "OTP has expired",
+                            "code": "expired_otp"
+                        }
+                    )
+                ]
             ),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"status": "failure", "message": "Not found", "code": "non_existent"},
+                description="Not OTP found",
+                examples=[
+                    OpenApiExample(
+                        name="No otp found response",
+                        value={
+                            "status": "failure",
+                            "message": "No OTP found for this account",
+                            "code": "non_existent"
+                        }
+                    ),
+
+                ]
+            )
         }
     )
     @transaction.atomic()
@@ -345,7 +541,8 @@ class ChangeEmailView(APIView):
         user = request.user
 
         if user.email == new_email:
-            raise RequestError(err_code=ErrorCode.OLD_EMAIL, err_msg="You can't use your previous email", )
+            raise RequestError(err_code=ErrorCode.OLD_EMAIL, err_msg="You can't use your previous email",
+                               status_code=status.HTTP_403_FORBIDDEN)
         elif not code or not user.otp_secret:
             raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="No OTP found for this account",
                                status_code=status.HTTP_404_NOT_FOUND)
@@ -383,10 +580,30 @@ class LoginView(TokenObtainPairView):
         tags=['Login'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
+                response=LoginSerializer,
                 description="Logged in successfully",
             ),
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Account not active or Invalid credentials",
+                response={"status": "failure", "message": "Invalid credentials", "code": "invalid_credentials"},
+                description="Invalid credentials",
+                examples=[
+                    OpenApiExample(
+                        name="Invalid credentials",
+                        value={
+                            "status": "failure",
+                            "message": "Invalid credentials",
+                            "code": "invalid_credentials"
+                        }
+                    ),
+                    OpenApiExample(
+                        name="Unverified email response",
+                        value={
+                            "status": "failure",
+                            "message": "Verify your email first",
+                            "code": "unverified_email"
+                        }
+                    )
+                ]
             ),
         }
     )
@@ -438,10 +655,31 @@ class LogoutView(TokenBlacklistView):
         tags=['Logout'],
         responses={
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                response={"status": "failure", "message": "Token is blacklisted", "code": "invalid_entry"},
                 description="Token is blacklisted",
+                examples=[
+                    OpenApiExample(
+                        name="Blacklisted token response",
+                        value={
+                            "status": "failure",
+                            "message": "Token is blacklisted",
+                            "code": "invalid_entry"
+                        }
+                    )
+                ]
             ),
             status.HTTP_200_OK: OpenApiResponse(
-                description="Logged out successfully"
+                response={"status": "success", "message": "Logged out successfully"},
+                description="Logged out successfully",
+                examples=[
+                    OpenApiExample(
+                        name="Logout successful response",
+                        value={
+                            "status": "success",
+                            "message": "Logged out successfully"
+                        }
+                    )
+                ]
             )
         }
     )
@@ -470,6 +708,7 @@ class RefreshView(TokenRefreshView):
         tags=['Token'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
+                response=TokenRefreshSerializer,
                 description="Refreshed successfully",
             ),
         }
@@ -498,10 +737,31 @@ class RequestForgotPasswordCodeView(APIView):
         tags=['Password Change'],
         responses={
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                description="Account not found"
+                response={"status": "failure", "message": "Account not found", "code": "non_existent"},
+                description="Account not found",
+                examples=[
+                    OpenApiExample(
+                        name="Account not found response",
+                        value={
+                            "status": "failure",
+                            "message": "Account not found",
+                            "code": "non_existent"
+                        }
+                    )
+                ]
             ),
-            status.HTTP_202_ACCEPTED: OpenApiResponse(
-                description="Password code sent successfully"
+            status.HTTP_200_OK: OpenApiResponse(
+                response={"status": "success", "message": "Password code sent successfully"},
+                description="Password code sent successfully",
+                examples=[
+                    OpenApiExample(
+                        name="Password code sent response",
+                        value={
+                            "status": "success",
+                            "message": "Password code sent successfully"
+                        }
+                    )
+                ]
             )
         }
 
@@ -540,17 +800,72 @@ class VerifyForgotPasswordCodeView(APIView):
         """,
         tags=['Password Change'],
         responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                response={"status": "success", "message": "Otp verified successfully."},
+                description="Otp verified successfully.",
+                examples=[
+                    OpenApiExample(
+                        name="Otp verified response",
+                        value={
+                            "status": "success",
+                            "message": "Otp verified successfully",
+                        }
+                    )
+                ]
+            ),
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="OTP error"
+                response={"status": "failure", "message": "Invalid OTP", "code": "incorrect_otp"},
+                description="OTP Error",
+                examples=[
+                    OpenApiExample(
+                        name="Invalid OTP response",
+                        value={
+                            "status": "failure",
+                            "message": "Invalid OTP",
+                            "code": "incorrect_otp"
+                        }
+                    ),
+                    OpenApiExample(
+                        name="Expired OTP response",
+                        value={
+                            "status": "failure",
+                            "message": "OTP has expired",
+                            "code": "expired_otp"
+                        }
+                    )
+                ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                description="Account not found"
-            ),
-            status.HTTP_202_ACCEPTED: OpenApiResponse(
-                description="Otp verified successfully"
+                response={"status": "failure", "message": "Not found", "code": "non_existent"},
+                description="Not found",
+                examples=[
+                    OpenApiExample(
+                        name="Email not found response",
+                        value={
+                            "status": "failure",
+                            "message": "User with this email not found",
+                            "code": "non_existent"
+                        }
+                    ),
+                    OpenApiExample(
+                        name="No otp found response",
+                        value={
+                            "status": "failure",
+                            "message": "No OTP found for this account",
+                            "code": "non_existent"
+                        }
+                    ),
+                    OpenApiExample(
+                        name="No OTP secret found response",
+                        value={
+                            "status": "failure",
+                            "message": "No OTP secret found for this account",
+                            "code": "non_existent"
+                        }
+                    )
+                ]
             )
         }
-
     )
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
@@ -607,11 +922,32 @@ class ChangeForgottenPasswordView(APIView):
         """,
         tags=['Password Change'],
         responses={
-            status.HTTP_200_OK: OpenApiResponse(
+            status.HTTP_202_ACCEPTED: OpenApiResponse(
+                response={"status": "success", "message": "Password updated successfully."},
                 description="Password updated successfully",
+                examples=[
+                    OpenApiExample(
+                        name="Password updated response",
+                        value={
+                            "status": "success",
+                            "message": "Password updated successfully.",
+                        }
+                    )
+                ]
             ),
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Token not provided"
+                response={"status": "failure", "message": "Token not provided", "code": "invalid_entry"},
+                description="Token not provided",
+                examples=[
+                    OpenApiExample(
+                        name="Token not provided response",
+                        value={
+                            "status": "failure",
+                            "message": "Token not provided",
+                            "code": "invalid_entry"
+                        }
+                    )
+                ]
             )
         }
     )
@@ -630,7 +966,7 @@ class ChangeForgottenPasswordView(APIView):
         user.set_password(password)
         user.save()
 
-        return CustomResponse.success(message="Password updated successfully")
+        return CustomResponse.success(message="Password updated successfully", status_code=status.HTTP_202_ACCEPTED)
 
 
 class ChangePasswordView(APIView):
@@ -650,8 +986,18 @@ class ChangePasswordView(APIView):
         """,
         tags=['Password Change'],
         responses={
-            status.HTTP_200_OK: OpenApiResponse(
+            status.HTTP_202_ACCEPTED: OpenApiResponse(
+                response={"status": "success", "message": "Password updated successfully"},
                 description="Password updated successfully",
+                examples=[
+                    OpenApiExample(
+                        name="Password updated response",
+                        value={
+                            "status": "success",
+                            "message": "Password updated successfully",
+                        }
+                    )
+                ]
             ),
         }
     )
@@ -665,7 +1011,7 @@ class ChangePasswordView(APIView):
         user.set_password(password)
         user.save()
 
-        return CustomResponse.success(message="Password updated successfully")
+        return CustomResponse.success(message="Password updated successfully", status_code=status.HTTP_202_ACCEPTED)
 
 
 """
@@ -685,11 +1031,22 @@ class RetrieveUpdateDeleteEmployeeProfileView(APIView):
         """,
         tags=['Employee Profile'],
         responses={
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Provide a profile id"
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"status": "failure", "message": "No profile found for this user", "code": "non_existent"},
+                description="No profile found for this user",
+                examples=[
+                    OpenApiExample(
+                        name="No profile found response",
+                        value={
+                            "status": "failure",
+                            "message": "No profile found for this user",
+                            "code": "non_existent"
+                        }
+                    )
+                ]
             ),
             status.HTTP_200_OK: OpenApiResponse(
-                description="Fetched successfully",
+                description="Retrieved profile successfully",
                 response=EmployeeProfileSerializer
             )
         }
@@ -714,11 +1071,8 @@ class RetrieveUpdateDeleteEmployeeProfileView(APIView):
         """,
         tags=['Employee Profile'],
         responses={
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Provide a profile id"
-            ),
             status.HTTP_202_ACCEPTED: OpenApiResponse(
-                description="Updated successfully",
+                description="Updated profile successfully",
                 response=EmployeeProfileSerializer
             )
         }
@@ -748,7 +1102,17 @@ class RetrieveUpdateDeleteEmployeeProfileView(APIView):
         tags=['Employee Profile'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
-                description="Deleted successfully"
+                response={"status": "success", "message": "Deleted successfully"},
+                description="Deleted successfully",
+                examples=[
+                    OpenApiExample(
+                        name="Deleted response",
+                        value={
+                            "status": "success",
+                            "message": "Deleted successfully"
+                        }
+                    )
+                ]
             )
         }
     )
@@ -775,11 +1139,22 @@ class RetrieveUpdateDeleteCompanyProfileView(APIView):
         """,
         tags=['Company Profile'],
         responses={
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Provide a profile id"
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"status": "failure", "message": "No profile found for this user", "code": "non_existent"},
+                description="No profile found for this user",
+                examples=[
+                    OpenApiExample(
+                        name="No profile found response",
+                        value={
+                            "status": "failure",
+                            "message": "No profile found for this user",
+                            "code": "non_existent"
+                        }
+                    )
+                ]
             ),
             status.HTTP_200_OK: OpenApiResponse(
-                description="Fetched successfully",
+                description="Retrieved profile successfully",
                 response=CompanyProfileSerializer
             )
         }
@@ -804,11 +1179,8 @@ class RetrieveUpdateDeleteCompanyProfileView(APIView):
         """,
         tags=['Company Profile'],
         responses={
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Provide a profile id"
-            ),
             status.HTTP_202_ACCEPTED: OpenApiResponse(
-                description="Updated successfully",
+                description="Updated profile successfully",
                 response=CompanyProfileSerializer
             )
         }
@@ -838,7 +1210,17 @@ class RetrieveUpdateDeleteCompanyProfileView(APIView):
         tags=['Company Profile'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
-                description="Deleted successfully"
+                response={"status": "success", "message": "Deleted successfully"},
+                description="Deleted successfully",
+                examples=[
+                    OpenApiExample(
+                        name="Deleted response",
+                        value={
+                            "status": "success",
+                            "message": "Deleted successfully"
+                        }
+                    )
+                ]
             )
         }
     )

@@ -23,7 +23,7 @@ class JobType(BaseModel):
 class Job(BaseModel):
     recruiter = models.ForeignKey(User, on_delete=models.CASCADE, related_name="jobs")
     title = models.CharField(max_length=255)
-    image = models.ImageField(upload_to="jobs", null=True)
+    image = models.ImageField(upload_to="static/jobs", null=True)
     salary = models.DecimalField(max_digits=10, decimal_places=2)
     type = models.ForeignKey(JobType, on_delete=models.CASCADE, related_name="jobs")
     location = models.CharField(
