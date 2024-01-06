@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q, Case, When, F, CharField
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter, OpenApiExample
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -35,7 +35,26 @@ class RetrieveChatListView(APIView):
         ],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
+                response={"application/json"},
                 description="Returned all list of rooms",
+                examples=[
+                    OpenApiExample(
+                        name="Retrieve chat list",
+                        value={
+                            "data": {
+                                "inbox_list": [
+                                    {
+                                        "id": "<uuid>",
+                                        "friend_name": "<string>",
+                                        "friend_profile_image": "<string:image_url>",
+                                        "last_message": "<string>",
+                                        "time": "<datetime>"
+                                    },
+                                ]
+                            }
+                        }
+                    )
+                ]
             ),
         }
     )
@@ -96,21 +115,43 @@ class RetrieveChatView(APIView):
         tags=['Chat'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
+                response={"application/json"},
                 description="Return specific chat",
-            ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Invalid friend id",
+                examples=[
+                    OpenApiExample(
+                        name="Retrieve chat",
+                        value={
+                            "data": {
+                                "id": "<uuid>",
+                                "sender_name": "<string>",
+                                "sender_profile_image": "<string:image_url>",
+                                "friend_name": "<string>",
+                                "friend_profile_image": "<string:image_url>",
+                                "text": "<string>",
+                                "is_read": "<bool>",
+                            }
+                        }
+                    )
+                ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"status": "error", "message": "Friend does not exist", "code": "non_existent"},
                 description="Friend does not exist",
+                examples=[
+                    OpenApiExample(
+                        name="Friend does not exist",
+                        value={
+                            "status": "error",
+                            "message": "Friend does not exist",
+                            "code": "non_existent",
+                        }
+                    )
+                ]
             )
         }
     )
     def get(self, request, *args, **kwargs):
         friend_id = self.kwargs.get("friend_id")
-        if not friend_id:
-            raise RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="Invalid friend id",
-                               status_code=status.HTTP_400_BAD_REQUEST)
 
         try:
             friend = User.objects.get(id=friend_id)
@@ -172,21 +213,36 @@ class ArchiveChatView(APIView):
         tags=['Chat'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
+                response={"status": "success", "message": "Archived specific chat"},
                 description="Archived specific chat",
-            ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Invalid friend id",
+                examples=[
+                    OpenApiExample(
+                        name="Archive chat",
+                        value={
+                            "status": "success",
+                            "message": "Archived specific chat",
+                        }
+                    )
+                ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"status": "error", "message": "Chat does not exist", "code": "non_existent"},
                 description="Chat does not exist",
+                examples=[
+                    OpenApiExample(
+                        name="Chat does not exist",
+                        value={
+                            "status": "error",
+                            "message": "Chat does not exist",
+                            "code": "non_existent",
+                        }
+                    )
+                ]
             )
         }
     )
     def get(self, request, *args, **kwargs):
         friend_id = self.kwargs.get("friend_id")
-        if not friend_id:
-            raise RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="Invalid friend id",
-                               status_code=status.HTTP_400_BAD_REQUEST)
 
         try:
             Message.objects.filter(
@@ -208,21 +264,36 @@ class RemoveArchivedChatView(APIView):
         tags=['Chat'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
+                response={"status": "success", "message": "Unarchived specific chat"},
                 description="Unarchived specific chat",
-            ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                description="Invalid friend id",
+                examples=[
+                    OpenApiExample(
+                        name="Unarchive chat",
+                        value={
+                            "status": "success",
+                            "message": "Unarchived specific chat",
+                        }
+                    )
+                ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"status": "error", "message": "Chat does not exist", "code": "non_existent"},
                 description="Chat does not exist",
+                examples=[
+                    OpenApiExample(
+                        name="Chat does not exist",
+                        value={
+                            "status": "error",
+                            "message": "Chat does not exist",
+                            "code": "non_existent",
+                        }
+                    )
+                ]
             )
         }
     )
     def get(self, request, *args, **kwargs):
         friend_id = self.kwargs.get("friend_id")
-        if not friend_id:
-            raise RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="Invalid friend id",
-                               status_code=status.HTTP_400_BAD_REQUEST)
 
         try:
             Message.objects.filter(sender=request.user, receiver_id=friend_id).update(is_archived=False)
