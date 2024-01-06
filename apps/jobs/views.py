@@ -66,7 +66,7 @@ class SearchJobsView(APIView):
                 ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                response={"application/json"},
+                response={"status": "failure", "message": "No jobs found", "code": "non_existent"},
                 description="No jobs found",
                 examples=[
                     OpenApiExample(
@@ -116,7 +116,7 @@ class JobsHomeView(APIView):
     filterset_class = JobFilter
 
     @extend_schema(
-        summary="Get home page",
+        summary="Job seeker home page",
         description=(
                 """
                 Get home page: Search, Retrieve all job types, and all jobs and also tip including notifications.
@@ -210,10 +210,10 @@ class JobDetailsView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        summary="Get single job",
+        summary="Retrieve single job",
         description=(
                 """
-                This endpoint allows an authenticated job seeker to retrieve a single job using the id passed in the path parameter.
+                This endpoint allows an authenticated job seeker or recruiter to retrieve a single job using the id passed in the path parameter.
                 """
         ),
         tags=["Job (Seeker)"],
@@ -245,7 +245,7 @@ class JobDetailsView(APIView):
                 ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                response={"application/json"},
+                response={"status": "failure", "message": "Job with this id does not exist", "code": "non_existent"},
                 description="Job with this id does not exist",
                 examples=[
                     OpenApiExample(
@@ -297,7 +297,7 @@ class JobApplyView(APIView):
         summary="Apply for a job",
         description=(
                 """
-                This endpoint allows a authenticated user to apply for a job by passing the id of the job in the path parameter,
+                This endpoint allows a authenticated job seeker to apply for a job by passing the id of the job in the path parameter,
                 and also pass in the required fields in the request body. ``CV: File``: Only accepts ``.pdf``, ``.doc`` and ``.docx`` files
                 """
         ),
@@ -305,10 +305,20 @@ class JobApplyView(APIView):
         tags=["Job (Seeker)"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
-                response="Successfully applied for job"
+                response={"status": "success", "message": "Successfully applied for job"},
+                description="Successfully applied for job",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully applied for job",
+                        }
+                    )
+                ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                response={"application/json"},
+                response={"status": "failure", "message": "Job with this id does not exist", "code": "non_existent"},
                 description="Job with this id does not exist",
                 examples=[
                     OpenApiExample(
@@ -322,14 +332,22 @@ class JobApplyView(APIView):
                 ]
             ),
             status.HTTP_409_CONFLICT: OpenApiResponse(
-                response={"application/json"},
+                response={"status": "failure", "message": "Already applied for this job", "code": "already_exists"},
                 description="Already applied for this job",
                 examples=[
                     OpenApiExample(
-                        name="Conflict Error Response",
+                        name="Pending Applied Error Response",
                         value={
                             "status": "failure",
-                            "message": "Already applied for this job",
+                            "message": "You have already applied to this job and your application is still pending.",
+                            "code": "already_exists",
+                        }
+                    ),
+                    OpenApiExample(
+                        name="Accepted Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "You have already applied to this job and your application has been accepted.",
                             "code": "already_exists",
                         }
                     )
@@ -404,8 +422,6 @@ class AppliedJobsSearchView(APIView):
                                     "title": "Software Developer",
                                     "recruiter": "Google",
                                     "job_image": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
-                                    "location": "New York",
-                                    "type": "Full-time",
                                     "status": "PENDING",
                                 }
                             ]
@@ -414,7 +430,7 @@ class AppliedJobsSearchView(APIView):
                 ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                response={"application/json"},
+                response={"status": "failure", "message": "No applied jobs found", "code": "non_existent"},
                 description="No applied jobs found",
                 examples=[
                     OpenApiExample(
@@ -484,6 +500,7 @@ class AppliedJobDetailsView(APIView):
                                 "job_image": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
                                 "location": "New York",
                                 "type": "Full Time",
+                                "salary": "<decimal or float>",
                                 "status": "PENDING",
                                 "review": "<string>",
 
@@ -493,7 +510,8 @@ class AppliedJobDetailsView(APIView):
                 ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                response={"application/json"},
+                response={"status": "failure", "message": "Applied job with this id does not exist",
+                          "code": "non_existent"},
                 description="Applied job with this id does not exist",
                 examples=[
                     OpenApiExample(
@@ -565,6 +583,7 @@ class FilterAppliedJobsView(APIView):
                                     "recruiter": "Google",
                                     "job_image": "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
                                     "status": "PENDING",
+                                    "salary": "<decimal or float>",
                                     "location": "New York",
                                     "type": "Full Time",
                                     "review": "<string>",
@@ -603,7 +622,7 @@ class CreateDeleteSavedJobsView(APIView):
         summary="Create saved job",
         description=(
                 """
-                This endpoint allows a job seeker to create a saved job, pass in the `id` of the job to the path parameter.
+                This endpoint allows a job seeker to save a job, pass in the `id` of the job to the path parameter.
                 """
         ),
         tags=["Job (Seeker)"],
@@ -633,7 +652,7 @@ class CreateDeleteSavedJobsView(APIView):
                 ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                response={"application/json"},
+                response={"status": "failure", "message": "Job with this id does not exist", "code": "non_existent"},
                 description="Job with this id does not exist",
                 examples=[
                     OpenApiExample(
@@ -647,7 +666,7 @@ class CreateDeleteSavedJobsView(APIView):
                 ]
             ),
             status.HTTP_409_CONFLICT: OpenApiResponse(
-                response={"application/json"},
+                response={"status": "failure", "message": "Job is already saved", "code": "already_exists"},
                 description="Job is already saved",
                 examples=[
                     OpenApiExample(
@@ -712,7 +731,8 @@ class CreateDeleteSavedJobsView(APIView):
                 ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                response={"status": "failure", "message": "Saved job with this id does not exist"},
+                response={"status": "failure", "message": "Saved job with this id does not exist",
+                          "code": "non_existent"},
                 description="Saved job with this id does not exist",
                 examples=[
                     OpenApiExample(
@@ -720,6 +740,7 @@ class CreateDeleteSavedJobsView(APIView):
                         value={
                             "status": "failure",
                             "message": "Saved job with this id does not exist",
+                            "code": "non_existent",
                         }
                     )
                 ]
@@ -820,7 +841,7 @@ class SearchVacanciesView(APIView):
         tags=['Job Recruiter Home'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
-                response={"application/json"},
+                response={"status": "success", "message": "Successfully retrieved posted vacancies"},
                 description="Successfully retrieved posted vacancies",
                 examples=[
                     OpenApiExample(
@@ -845,7 +866,7 @@ class SearchVacanciesView(APIView):
                 ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                response={"status": "failure", "message": "No vacancies found"},
+                response={"status": "failure", "message": "No vacancies found", "code": "non_existent"},
                 description="No vacancies found",
                 examples=[
                     OpenApiExample(
@@ -853,6 +874,7 @@ class SearchVacanciesView(APIView):
                         value={
                             "status": "failure",
                             "message": "No vacancies found",
+                            "code": "non_existent",
                         }
                     )
                 ]
@@ -1030,7 +1052,7 @@ class CreateVacanciesView(APIView):
         description=(
                 """
                 This endpoint allows an authenticated job recruiter to create a new job.
-                When creating a new job, assign or pass in the country code to the location not the country full name.#
+                When creating a new job, assign or pass in the country code to the location not the country full name.
                 e.g.
                 - UK
                 - US
@@ -1058,22 +1080,41 @@ class CreateVacanciesView(APIView):
                     )
                 ]
             ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                response={"status": "failure", "message": "An error occurred while trying to create a job",
+                          "code": "other_error"},
+                description="An error occurred while trying to create a job",
+                examples=[
+                    OpenApiExample(
+                        name="Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "An error occurred while trying to create a job",
+                            "code": "other_error",
+                        }
+                    )
+                ]
+            )
         }
     )
     @transaction.atomic()
     def post(self, request):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer = self.serializer_class(data=request.data)
+            serializer.is_valid(raise_exception=True)
 
-        requirements_data = serializer.validated_data.pop('requirements', [])
-        created_job = Job.objects.create(recruiter=request.user, **serializer.validated_data)
+            requirements_data = serializer.validated_data.pop('requirements', [])
+            created_job = Job.objects.create(recruiter=request.user, **serializer.validated_data)
 
-        # create JobRequirements objects for each requirement
-        job_requirements = [
-            JobRequirement(job=created_job, requirement=requirement)
-            for requirement in requirements_data
-        ]
-        JobRequirement.objects.bulk_create(job_requirements)
+            # create JobRequirements objects for each requirement
+            job_requirements = [
+                JobRequirement(job=created_job, requirement=requirement)
+                for requirement in requirements_data
+            ]
+            JobRequirement.objects.bulk_create(job_requirements)
+        except Exception as e:
+            raise RequestError(err_code=ErrorCode.OTHER_ERROR, err_msg="An error occurred while trying to create a job",
+                               status_code=status.HTTP_400_BAD_REQUEST)
 
         data = {
             "id": created_job.id,
@@ -1120,7 +1161,7 @@ class UpdateDeleteVacancyView(APIView):
                 ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                response={"application/json"},
+                response={"status": "failure", "message": "Job not found", "code": "non-existent"},
                 description="Job not found",
                 examples=[
                     OpenApiExample(
@@ -1181,7 +1222,7 @@ class UpdateDeleteVacancyView(APIView):
         summary="Delete a job",
         description=(
                 """
-                This endpoint allows an authenticated job recruiter to delete a job, pass the applied job id to the path parameter
+                This endpoint allows an authenticated job recruiter to delete a job, pass the job id to the path parameter
                 """
         ),
         tags=['Job (Recruiter)'],
@@ -1200,7 +1241,7 @@ class UpdateDeleteVacancyView(APIView):
                 ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                response={"application/json"},
+                response={"status": "failure", "message": "Job not found", "code": "non-existent"},
                 description="Job not found",
                 examples=[
                     OpenApiExample(
@@ -1236,7 +1277,7 @@ class UpdateAppliedJobView(APIView):
         summary="Update applied job",
         description=(
                 """
-                This endpoint allows an authenticated job seeker to update an applied job
+                This endpoint allows an authenticated job recruiter to update a posted applied job
                 
                 ```AVAILABLE FILTERS: PENDING, ACCEPTED, REJECTED, SCHEDULED FOR INTERVIEW```
                 """
@@ -1268,7 +1309,7 @@ class UpdateAppliedJobView(APIView):
                 ]
             ),
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                response={"application/json"},
+                response={"status": "failure", "message": "No application with this ID", "code": "non-existent"},
                 description="No application with this ID",
                 examples=[
                     OpenApiExample(
