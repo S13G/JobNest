@@ -2,8 +2,10 @@ from datetime import timedelta
 
 import pyotp
 from django.contrib.auth import authenticate
+from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
+from django.views.decorators.cache import cache_page
 from drf_spectacular.utils import OpenApiResponse, extend_schema, OpenApiExample
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -1052,6 +1054,7 @@ class RetrieveUpdateDeleteEmployeeProfileView(APIView):
             )
         }
     )
+    @cache_page(60 * 10)
     def get(self, request):
         user = request.user
 
