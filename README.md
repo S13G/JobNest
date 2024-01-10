@@ -4,11 +4,13 @@
 
 ## 🚀 JobNest: Your Dream Job is Just a Click Away 🚀
 
-Welcome to JobNest, the ultimate job portal platform designed specifically for students. We're here to help you find the perfect job you aspire for right after graduation. With our platform, you can register, apply for jobs, view job lists, submit your CV, chat with recruiters, and much more. Let's navigate the world of opportunities together!
+Welcome to JobNest, the ultimate job portal platform designed specifically for students. We're here to help you find the
+perfect job you aspire for right after graduation. With our platform, you can register, apply for jobs, view job lists,
+submit your CV, chat with recruiters, and much more. Let's navigate the world of opportunities together!
 
 ## JobNest API Link
 
-nil -  for now
+nil - for now
 
 ## Table of Contents
 
@@ -32,7 +34,8 @@ nil -  for now
 
 ## Testing
 
-We've thoroughly tested our platform to ensure a smooth and efficient user experience. If you face any issues, feel free to reach out
+We've thoroughly tested our platform to ensure a smooth and efficient user experience. If you face any issues, feel free
+to reach out
 
 ## Technologies Used
 
@@ -42,13 +45,13 @@ We've thoroughly tested our platform to ensure a smooth and efficient user exper
 - Docker and Docker-Compose
 - HTML5 & CSS
 - Railway for deployment
-- Neon.tech for database
+- Neon.tech for database(POSTGRES -- RECOMMENDED)
 - Cloudinary
 - Gmail for email services
 
 ## Getting Started
 
-Follow these steps to get the project up and running on your local machine:
+Follow these steps to get the project up and running on your local machine: ``Strictly use postgres for this project``
 
 1. Clone the repository:
 
@@ -62,25 +65,25 @@ Follow these steps to get the project up and running on your local machine:
 4. Build and run the service with
 
         docker-compose up --build
-    or execute the command below in case permission is denied and root user/permission is needed
-    
+   or execute the command below in case permission is denied and root user/permission is needed
+
         sudo docker-compose up --build
 
 5. Launch a new terminal session and run the following commands(if you are not using docker, but for
-  caution: `run them`)
+   caution: `run them`)
 
         django mm
-      The command above makes the migrations if there are some unapplied migrations
-    
+   The command above makes the migrations if there are some unapplied migrations
+
         django m
-      The command above performs the database migrations
+   The command above performs the database migrations
 
 
 6. Create an admin user with the command below(make sure you fill in the admin details in the env):
 
         django createsu
-    After creating the superuser, access the admin panel and login with your admin credentials with the
-  link https://localhost:8000/admin/
+   After creating the superuser, access the admin panel and login with your admin credentials with the
+   link https://localhost:8000/admin/
 
 
 7. Add your data through the swagger doc and you can download the schema and import it into your postman collection 
