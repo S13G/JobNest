@@ -584,6 +584,20 @@ class LoginView(TokenObtainPairView):
                 description="Logged in successfully",
             ),
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                response={"status": "failure", "message": "Verify your email first", "code": "invalid_credentials"},
+                description="Invalid credentials",
+                examples=[
+                    OpenApiExample(
+                        name="Unverified email response",
+                        value={
+                            "status": "failure",
+                            "message": "Verify your email first",
+                            "code": "unverified_email"
+                        }
+                    )
+                ]
+            ),
+            status.HTTP_401_UNAUTHORIZED: OpenApiResponse(
                 response={"status": "failure", "message": "Invalid credentials", "code": "invalid_credentials"},
                 description="Invalid credentials",
                 examples=[
@@ -595,16 +609,8 @@ class LoginView(TokenObtainPairView):
                             "code": "invalid_credentials"
                         }
                     ),
-                    OpenApiExample(
-                        name="Unverified email response",
-                        value={
-                            "status": "failure",
-                            "message": "Verify your email first",
-                            "code": "unverified_email"
-                        }
-                    )
                 ]
-            ),
+            )
         }
     )
     def post(self, request):
@@ -618,7 +624,7 @@ class LoginView(TokenObtainPairView):
 
         if not user or not user.check_password(password):
             raise RequestError(err_code=ErrorCode.INVALID_CREDENTIALS, err_msg="Invalid credentials",
-                               status_code=status.HTTP_400_BAD_REQUEST)
+                               status_code=status.HTTP_401_UNAUTHORIZED)
 
         if not user.email_verified:
             raise RequestError(err_code=ErrorCode.UNVERIFIED_USER, err_msg="Verify your email first",
