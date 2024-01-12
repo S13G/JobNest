@@ -942,28 +942,11 @@ class ChangeForgottenPasswordView(APIView):
                     )
                 ]
             ),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
-                response={"status": "failure", "message": "Token not provided", "code": "invalid_entry"},
-                description="Token not provided",
-                examples=[
-                    OpenApiExample(
-                        name="Token not provided response",
-                        value={
-                            "status": "failure",
-                            "message": "Token not provided",
-                            "code": "invalid_entry"
-                        }
-                    )
-                ]
-            )
         }
     )
     @transaction.atomic()
     def post(self, request, *args, **kwargs):
         token = self.kwargs.get('token')
-        if token is None:
-            raise RequestError(err_code=ErrorCode.INVALID_ENTRY, err_msg="Token not provided",
-                               status_code=status.HTTP_404_NOT_FOUND)
 
         user = decrypt_token_to_profile(token)
         serializer = self.serializer_class(data=request.data)

@@ -89,20 +89,7 @@ REST_FRAMEWORK = {
     "NON_FIELD_ERRORS_KEY": "error",
 }
 
-CORS_ALLOW_HEADERS = (
-    "x-requested-with",
-    "content-type",
-    "accept",
-    "origin",
-    "authorization",
-    "accept-encoding",
-    "access-control-allow-origin",
-    "content-disposition",
-)
-
 CORS_ALLOW_CREDENTIALS = True
-
-CORS_ALLOW_METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "JOBNEST API",
