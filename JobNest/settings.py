@@ -50,6 +50,7 @@ THIRD_PARTY_APPS = [
     "django_filters",
     "drf_spectacular",
     "rest_framework",
+    "rest_framework.authtoken",  # for testing purposes
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "treblle",
@@ -77,7 +78,7 @@ REST_FRAMEWORK = {
     ),
     "COERCE_DECIMAL_TO_STRING": False,
     "DEFAULT_PAGINATION_CLASS": "apps.common.paginator.CustomPagination",
-    # "EXCEPTION_HANDLER": "apps.common.exceptions.custom_exception_handler",
+    "EXCEPTION_HANDLER": "apps.common.exceptions.custom_exception_handler",
     "PAGE_SIZE": 30,
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -158,24 +159,23 @@ CHANNEL_LAYERS = {
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 #
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
-
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASS'),
-        'HOST': config('DB_HOST'),
-        'PORT': config('DB_PORT')
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': config('DB_NAME'),
+#         'USER': config('DB_USER'),
+#         'PASSWORD': config('DB_PASS'),
+#         'HOST': config('DB_HOST'),
+#         'PORT': config('DB_PORT')
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -231,7 +231,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
-# Email settings for SSL(Mainly for development and tests)
+# Email settings for SSL(Mainly for development and websocket_test)
 EMAIL_USE_TLS = False
 
 EMAIL_USE_SSL = True
