@@ -1,12 +1,11 @@
 from datetime import timedelta
 
 import pyotp
-from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
 from django.urls import reverse_lazy
 from django.utils import timezone
 from faker import Faker
-from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient, APITestCase
 
 from apps.core.models import EmployeeProfile, CompanyProfile, OTPSecret
@@ -173,24 +172,21 @@ class TestCoreEndpoints(APITestCase):
         user, _ = self.create_user_and_employee_profile('test@example.com', 'test_password', email_verified=True)
         user_data = {'email': user.email, 'password': 'test_password'}
 
-        authenticated_user = authenticate(request=self.client, **user_data)
-        print(authenticated_user)
-        assert authenticated_user is not None, "Invalid credentials"
-
-        response = self.client.post(reverse_lazy('login'), data=user_data)
+        self.assertTrue(check_password(password=user_data['password'], encoded=user.password))
+        response = self.client.post(reverse_lazy('login'), data=user_data, format="json")
+        print(response.data)
+        print(response.status_code)
         assert response.status_code == 200
         assert 'Logged in successfully' in response.data.get('message')
         assert 'tokens' in response.data.get('data')
         assert 'profile_data' in response.data.get('data')
-        token = Token.objects.create(user=user)
-        self.client.force_authenticate(user=user, token=token.key)
 
     def test_login_unverified_email(self):
         # Test login with unverified email
-        user, _ = self.create_user_and_profiles('test@example.com', 'test_password', email_verified=False)
+        user, _ = self.create_user_and_employee_profile('test@example.com', 'test_password', email_verified=False)
         user_data = {'email': 'test@example.com', 'password': 'test_password'}
 
-        response = self.client.post(reverse_lazy('login'), data=user_data)
+        response = self.client.post(reverse_lazy('login'), data=user_data, format="json")
         assert response.status_code == 400
         assert 'Verify your email first' in response.data.get('message')
 

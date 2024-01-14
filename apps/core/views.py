@@ -622,7 +622,7 @@ class LoginView(TokenObtainPairView):
         # authenticating user
         user = authenticate(request, email=email, password=password)
 
-        if not user or not user.check_password(password):
+        if not user:
             raise RequestError(err_code=ErrorCode.INVALID_CREDENTIALS, err_msg="Invalid credentials",
                                status_code=status.HTTP_401_UNAUTHORIZED)
 
@@ -630,7 +630,7 @@ class LoginView(TokenObtainPairView):
             raise RequestError(err_code=ErrorCode.UNVERIFIED_USER, err_msg="Verify your email first",
                                status_code=status.HTTP_400_BAD_REQUEST)
 
-        # Checking the type of profile it is (employee or company) and sending it to frontend
+        # Checking the type of profile it is (employee or company) and adding the data to the response
         if hasattr(user, 'employee_profile'):
             profile = user.employee_profile
             profile_serializer = EmployeeProfileSerializer(profile)
