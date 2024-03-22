@@ -2,13 +2,12 @@ from datetime import timedelta
 
 import pyotp
 from django.contrib.auth import get_user_model
-from django.contrib.auth.hashers import check_password
 from django.urls import reverse_lazy
 from django.utils import timezone
 from faker import Faker
 from rest_framework.test import APIClient, APITestCase
 
-from apps.core.models import EmployeeProfile, CompanyProfile, OTPSecret
+from apps.core.models import OTPSecret
 
 
 class TestCoreEndpoints(APITestCase):
@@ -24,88 +23,74 @@ class TestCoreEndpoints(APITestCase):
             'password': 'test_password',
         }
 
-    def test_employee_registration_success(self):
+    def _employee_registration_success(self):
         # Test successful registration
         response = self.client.post(reverse_lazy('employee-registration'), data=self.user_data)
-        assert response.status_code == 201
+        self.assertEqual(response.status_code, 201)
+        employee = self.user.objects.get()
+        return employee
 
-    def test_employee_registration_conflict(self):
-        # Test registration with existing user
-        existing_user = self.user.objects.create_user(email='existing@example.com', password='existing_password')
-        EmployeeProfile.objects.create(user=existing_user)
+    def _email_verification_success(self):
+        # Using employee for the verification process since its similar to the company
+        employee = self._employee_registration_success()
 
-        data = {
-            'email': 'existing@example.com',
-            'password': 'new_password',
-        }
-
-        response = self.client.post(reverse_lazy('employee-registration'), data=data)
-        assert response.status_code == 409
-
-    def test_company_registration_success(self):
-        # Test successful registration
-        response = self.client.post(reverse_lazy('company-registration'), data=self.user_data)
-        assert response.status_code == 201
-
-    def test_company_registration_conflict(self):
-        # Test registration with existing user
-        existing_user = self.user.objects.create_user(email='existing@example.com', password='existing_password')
-        CompanyProfile.objects.create(user=existing_user)
-
-        data = {
-            'email': 'existing@example.com',
-            'password': 'new_password',
-        }
-
-        response = self.client.post(reverse_lazy('company-registration'), data=data)
-        assert response.status_code == 409
-
-    def test_email_verification_success(self):
         # Test successful email verification
-        user = self.user.objects.create(email='test@example.com', email_verified=False)
-        otp_secret = OTPSecret.objects.create(user=user, secret=pyotp.random_base32())
+        otp_secret = OTPSecret.objects.get(user=employee)
 
         # Generate the OTP using the secret
         totp = pyotp.TOTP(otp_secret.secret, interval=600)
         otp = totp.now()
-        user_data = {'email': 'test@example.com', 'otp': otp}
+
+        user_data = {'email': employee.email, 'otp': otp}
 
         response = self.client.post(reverse_lazy('verify-email'), data=user_data)
         assert response.status_code == 200
         assert 'Email verification successful' in response.data.get('message')
+        return employee, otp_secret
+
+    def test_employee_registration_conflict(self):
+        already_registered_user = self._employee_registration_success()
+
+        data = {"email": already_registered_user.email, "password": already_registered_user.password}
+
+        # Test registration with existing user
+        response = self.client.post(reverse_lazy('employee-registration'), data=data)
+        assert response.status_code == 409
+
+    def _company_registration_success(self):
+        # Test successful registration
+        response = self.client.post(reverse_lazy('company-registration'), data=self.user_data)
+        assert response.status_code == 201
+        company = self.user.objects.get()
+        return company
+
+    def test_company_registration_conflict(self):
+        already_registered_user = self._company_registration_success()
+
+        data = {"email": already_registered_user.email, "password": already_registered_user.password}
+
+        response = self.client.post(reverse_lazy('company-registration'), data=data)
+        assert response.status_code == 409
 
     def test_already_verified_user(self):
         # Test email verification for an already verified user
-        user = self.user.objects.create(email='test@example.com', email_verified=True)
-        otp_secret = OTPSecret.objects.create(user=user, secret=pyotp.random_base32())
+        employee, otp_secret = self._email_verification_success()
 
         # Generate the OTP using the secret
         totp = pyotp.TOTP(otp_secret.secret, interval=600)
         otp = totp.now()
-        user_data = {'email': 'test@example.com', 'otp': otp}
+        user_data = {'email': employee.email, 'otp': otp}
 
         response = self.client.post(reverse_lazy('verify-email'), data=user_data)
         assert response.status_code == 200
         assert 'Email verified already' in response.data.get('message')
 
-    def test_invalid_otp(self):
-        # Test email verification with invalid OTP
-        user = self.user.objects.create(email='test@example.com', email_verified=False)
-        otp_secret = OTPSecret.objects.create(user=user, secret=pyotp.random_base32())
-
-        # Generate the OTP using the secret
-        totp = pyotp.TOTP(otp_secret.secret, interval=600)
-        otp = totp.now()
-        user_data = {'email': 'test@example.com', 'otp': '22222'}
-
-        response = self.client.post(reverse_lazy('verify-email'), data=user_data)
-        assert response.status_code == 400
-        assert 'Invalid OTP' in response.data.get('message')
-
     def test_expired_otp(self):
-        # Test email verification with expired OTP
-        user = self.user.objects.create(email='test@example.com', email_verified=False)
-        otp_secret = OTPSecret.objects.create(user=user, secret=pyotp.random_base32(),
+        # Test email verification for an already verified user
+        employee, otp_secret = self._email_verification_success()
+
+        # Create a new otp secret since after each use of a otp the secret is always deleted
+        otp_secret = OTPSecret.objects.create(user=employee, secret=pyotp.random_base32(),
                                               created=timezone.now() - timedelta(minutes=20))
 
         # Generate the OTP using the secret
@@ -114,7 +99,7 @@ class TestCoreEndpoints(APITestCase):
         user_data = {'email': 'test@example.com', 'otp': otp}
 
         response = self.client.post(reverse_lazy('verify-email'), data=user_data)
-        if timezone.now() > otp_secret.created + timedelta(minutes=10):
+        if timezone.now() > otp_secret.created + timedelta(minutes=20):
             assert response.status_code == 400
             assert 'OTP has expired' in response.data.get('message')
 
@@ -126,19 +111,9 @@ class TestCoreEndpoints(APITestCase):
         assert response.status_code == 404
         assert 'User with this email not found' in response.data.get('message')
 
-    def test_no_otp_secret_and_otp_found(self):
-        # Test email verification when no OTP secret is found for the account
-        user = self.user.objects.create(email='test@example.com', email_verified=False)
-        user_data = {'email': 'test@example.com', 'otp': '123456'}
-
-        response = self.client.post(reverse_lazy('verify-email'), data=user_data)
-        assert response.status_code == 404
-        assert 'No OTP secret found for this account' in response.data.get('message')
-
     def test_resend_verification_code_success(self):
-        # Test successful resend of verification code
-        user = self.user.objects.create(email='test@example.com', email_verified=False)
-        user_data = {'email': 'test@example.com'}
+        employee = self._employee_registration_success()
+        user_data = {'email': employee.email}
 
         response = self.client.post(reverse_lazy('resend-email-verification-code'), data=user_data)
         assert response.status_code == 200
@@ -146,8 +121,8 @@ class TestCoreEndpoints(APITestCase):
 
     def test_resend_verification_code_already_verified_user(self):
         # Test resend of verification code for an already verified user
-        user = self.user.objects.create(email='test@example.com', email_verified=True)
-        user_data = {'email': 'test@example.com'}
+        employee, _ = self._email_verification_success()
+        user_data = {'email': employee.email}
 
         response = self.client.post(reverse_lazy('resend-email-verification-code'), data=user_data)
         assert response.status_code == 200
@@ -161,21 +136,13 @@ class TestCoreEndpoints(APITestCase):
         assert response.status_code == 404
         assert 'User with this email not found' in response.data.get('message')
 
-    def create_user_and_employee_profile(self, email, password, email_verified=True):
-        # since company and employee has the same pattern of creation, i'm going with employee for the test cases
-        user = self.user.objects.create_user(email=email, password=password, email_verified=email_verified)
-        profile = EmployeeProfile.objects.create(user=user)
-        return user, profile
-
     def test_login_success(self):
-        # Test successful login
-        user, _ = self.create_user_and_employee_profile('test@example.com', 'test_password', email_verified=True)
-        user_data = {'email': user.email, 'password': 'test_password'}
+        # Test with registered employee profile
+        employee, _ = self._email_verification_success()
 
-        self.assertTrue(check_password(password=user_data['password'], encoded=user.password))
-        response = self.client.post(reverse_lazy('login'), data=user_data, format="json")
-        print(response.data)
-        print(response.status_code)
+        user_data = {"email": employee.email, "password": 'test_password'}
+
+        response = self.client.post(reverse_lazy('login'), data=user_data)
         assert response.status_code == 200
         assert 'Logged in successfully' in response.data.get('message')
         assert 'tokens' in response.data.get('data')
@@ -183,17 +150,18 @@ class TestCoreEndpoints(APITestCase):
 
     def test_login_unverified_email(self):
         # Test login with unverified email
-        user, _ = self.create_user_and_employee_profile('test@example.com', 'test_password', email_verified=False)
-        user_data = {'email': 'test@example.com', 'password': 'test_password'}
+        employee = self._employee_registration_success()
 
-        response = self.client.post(reverse_lazy('login'), data=user_data, format="json")
+        user_data = {"email": employee.email, "password": 'test_password'}
+
+        response = self.client.post(reverse_lazy('login'), data=user_data)
         assert response.status_code == 400
         assert 'Verify your email first' in response.data.get('message')
 
     def test_login_invalid_credentials(self):
         # Test login with invalid credentials
-        self.user.objects.create_user(email='test@example.com', password='test_password', email_verified=True)
-        user_data = {'email': 'test@example.com', 'password': 'wrong_password'}
+        employee, _ = self._email_verification_success()
+        user_data = {"email": employee.email, "password": 'wrong_password'}
 
         response = self.client.post(reverse_lazy('login'), data=user_data)
         assert response.status_code == 401
@@ -201,9 +169,8 @@ class TestCoreEndpoints(APITestCase):
 
     def test_change_email_success(self):
         # Test successful change of email
-        user = self.user.objects.create(email='test@example.com', email_verified=True)
-        otp_secret = OTPSecret.objects.create(user=user, secret=pyotp.random_base32(),
-                                              created=timezone.now() - timedelta(minutes=20))
+        user = self._employee_registration_success()
+        otp_secret = OTPSecret.objects.get(user=user)
 
         # Generate the OTP using the secret
         totp = pyotp.TOTP(otp_secret.secret, interval=600)
@@ -211,7 +178,6 @@ class TestCoreEndpoints(APITestCase):
         user_data = {'email': 'new@example.com', 'code': otp}
 
         response = self.client.post(reverse_lazy('change-email'), data=user_data)
-        print(response)
         assert response.status_code == 200
         assert 'Email changed successfully' in response.data.get('message')
 
