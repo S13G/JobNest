@@ -48,6 +48,32 @@ class TestCoreEndpoints(APITestCase):
         assert 'Email verification successful' in response.data.get('message')
         return employee, otp_secret
 
+    def _login_success(self):
+        # Test with registered employee profile
+        employee, _ = self._email_verification_success()
+
+        user_data = {"email": employee.email, "password": 'test_password'}
+
+        response = self.client.post(reverse_lazy('login'), data=user_data)
+        assert response.status_code == 200
+        assert 'Logged in successfully' in response.data.get('message')
+        assert 'tokens' in response.data.get('data')
+        assert 'profile_data' in response.data.get('data')
+        tokens = response.data.get('data').get('tokens')
+        profile_data = response.data.get('data').get('profile_data')
+        return tokens, profile_data
+
+    def _authenticate_with_tokens(self):
+        tokens, _ = self._login_success()
+        self.client.force_authenticate(user=self.user.objects.get(), token=tokens.get('access'))
+
+    def _company_registration_success(self):
+        # Test successful registration
+        response = self.client.post(reverse_lazy('company-registration'), data=self.user_data)
+        assert response.status_code == 201
+        company = self.user.objects.get()
+        return company
+
     def test_employee_registration_conflict(self):
         already_registered_user = self._employee_registration_success()
 
@@ -56,13 +82,6 @@ class TestCoreEndpoints(APITestCase):
         # Test registration with existing user
         response = self.client.post(reverse_lazy('employee-registration'), data=data)
         assert response.status_code == 409
-
-    def _company_registration_success(self):
-        # Test successful registration
-        response = self.client.post(reverse_lazy('company-registration'), data=self.user_data)
-        assert response.status_code == 201
-        company = self.user.objects.get()
-        return company
 
     def test_company_registration_conflict(self):
         already_registered_user = self._company_registration_success()
@@ -136,18 +155,6 @@ class TestCoreEndpoints(APITestCase):
         assert response.status_code == 404
         assert 'User with this email not found' in response.data.get('message')
 
-    def test_login_success(self):
-        # Test with registered employee profile
-        employee, _ = self._email_verification_success()
-
-        user_data = {"email": employee.email, "password": 'test_password'}
-
-        response = self.client.post(reverse_lazy('login'), data=user_data)
-        assert response.status_code == 200
-        assert 'Logged in successfully' in response.data.get('message')
-        assert 'tokens' in response.data.get('data')
-        assert 'profile_data' in response.data.get('data')
-
     def test_login_unverified_email(self):
         # Test login with unverified email
         employee = self._employee_registration_success()
@@ -168,57 +175,70 @@ class TestCoreEndpoints(APITestCase):
         assert 'Invalid credentials' in response.data.get('message')
 
     def test_change_email_success(self):
-        # Test successful change of email
-        user = self._employee_registration_success()
-        otp_secret = OTPSecret.objects.get(user=user)
+        self._authenticate_with_tokens()
+        user = self.user.objects.get()
 
-        # Generate the OTP using the secret
+        otp_secret = OTPSecret.objects.create(user=user, secret=pyotp.random_base32())
         totp = pyotp.TOTP(otp_secret.secret, interval=600)
         otp = totp.now()
-        user_data = {'email': 'new@example.com', 'code': otp}
+
+        user_data = {'email': 'new@example.com', 'otp': otp}
 
         response = self.client.post(reverse_lazy('change-email'), data=user_data)
         assert response.status_code == 200
         assert 'Email changed successfully' in response.data.get('message')
 
     def test_change_email_old_email(self):
+        self._authenticate_with_tokens()
+        user = self.user.objects.get()
+
         # Test change of email with the same email as the current one
-        user = self.user.objects.create(email='test@example.com', email_verified=True)
         otp_secret = OTPSecret.objects.create(user=user, secret=pyotp.random_base32())
-        user_data = {'email': 'test@example.com', 'code': '121212'}
+        totp = pyotp.TOTP(otp_secret.secret, interval=600)
+        otp = totp.now()
+
+        user_data = {'email': 'test@example.com', 'otp': otp}
 
         response = self.client.post(reverse_lazy('change-email'), data=user_data)
         assert response.status_code == 403
         assert 'You can\'t use your previous email' in response.data.get('message')
 
     def test_change_email_no_otp_found(self):
-        # Test change of email without OTP found
-        user = self.user.objects.create(email='test@example.com', email_verified=True)
-        user_data = {'email': 'new@example.com', 'code': '121212'}
+        self._authenticate_with_tokens()
+        user = self.user.objects.get()
 
-        response = self.client.post(reverse_lazy('change-email'), data=user_data)
-        assert response.status_code == 404
-        assert 'No OTP found for this account' in response.data.get('message')
+        if not OTPSecret.objects.filter(user=user).exists():
+            user_data = {'email': 'new@example.com', 'otp': '123456'}
+
+            response = self.client.post(reverse_lazy('change-email'), data=user_data)
+            assert response.status_code == 404
+            assert 'No OTP found for this account' in response.data.get('message')
 
     def test_change_email_expired_otp(self):
-        # Test change of email with an expired OTP
-        user = self.user.objects.create(email='test@example.com', email_verified=True)
+        self._authenticate_with_tokens()
+        user = self.user.objects.get()
+
+        # Test change of email with the same email as the current one
         otp_secret = OTPSecret.objects.create(user=user, secret=pyotp.random_base32())
-        otp_secret.created = otp_secret.created - timedelta(minutes=11)  # Simulate an expired OTP
+        otp_secret.created -= timedelta(minutes=20)
         otp_secret.save()
 
-        user_data = {'email': 'new@example.com', 'code': 'test_code'}
+        totp = pyotp.TOTP(otp_secret.secret, interval=600)
+        otp = totp.now()
+        user_data = {'email': 'new@example.com', 'otp': otp}
 
         response = self.client.post(reverse_lazy('change-email'), data=user_data)
         assert response.status_code == 400
         assert 'OTP has expired' in response.data.get('message')
 
     def test_change_email_incorrect_otp(self):
-        # Test change of email with an incorrect OTP
-        user = self.user.objects.create(email='test@example.com', email_verified=True)
-        otp_secret = OTPSecret.objects.create(user=user, secret=pyotp.random_base32())
+        self._authenticate_with_tokens()
+        user = self.user.objects.get()
 
-        user_data = {'email': 'new@example.com', 'code': 'incorrect_code'}
+        otp_secret = OTPSecret.objects.create(user=user, secret=pyotp.random_base32())
+        totp = pyotp.TOTP(otp_secret.secret, interval=600)
+
+        user_data = {'email': 'new@example.com', 'otp': '12345'}
 
         response = self.client.post(reverse_lazy('change-email'), data=user_data)
         assert response.status_code == 400

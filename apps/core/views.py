@@ -291,7 +291,7 @@ class VerifyEmailView(APIView):
             raise RequestError(err_code=ErrorCode.VERIFIED_USER, err_msg="Email verified already",
                                status_code=status.HTTP_200_OK)
         try:
-            if not code or not user.otp_secret:
+            if not code or not OTPSecret.objects.filter(user=user).exists():
                 raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="No OTP found for this account",
                                    status_code=status.HTTP_404_NOT_FOUND)
 
@@ -537,13 +537,13 @@ class ChangeEmailView(APIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         new_email = serializer.validated_data.get('email')
-        code = request.data.get('code')
+        otp = serializer.validated_data.get('otp')
         user = request.user
 
         if user.email == new_email:
             raise RequestError(err_code=ErrorCode.OLD_EMAIL, err_msg="You can't use your previous email",
                                status_code=status.HTTP_403_FORBIDDEN)
-        elif not code or not user.otp_secret:
+        elif not otp or not OTPSecret.objects.filter(user=user).exists():
             raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="No OTP found for this account",
                                status_code=status.HTTP_404_NOT_FOUND)
 
@@ -556,7 +556,7 @@ class ChangeEmailView(APIView):
 
         # Verify the OTP
         totp = pyotp.TOTP(user.otp_secret.secret, interval=600)
-        if not totp.verify(code):
+        if not totp.verify(otp):
             raise RequestError(err_code=ErrorCode.INCORRECT_OTP, err_msg="Invalid OTP",
                                status_code=status.HTTP_400_BAD_REQUEST)
 
@@ -888,7 +888,7 @@ class VerifyForgotPasswordCodeView(APIView):
                                status_code=status.HTTP_404_NOT_FOUND)
 
         try:
-            if not code or not user.otp_secret:
+            if not code or not OTPSecret.objects.filter(user=user).exists():
                 raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="No OTP found for this account",
                                    status_code=status.HTTP_404_NOT_FOUND)
 
