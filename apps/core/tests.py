@@ -22,6 +22,8 @@ class TestCoreEndpoints(APITestCase):
             'email': 'test@example.com',
             'password': 'test_password',
         }
+        self.tokens = ''
+        self.encrypted_password_token = ''
 
     def _employee_registration_success(self):
         # Test successful registration
@@ -65,6 +67,7 @@ class TestCoreEndpoints(APITestCase):
 
     def _authenticate_with_tokens(self):
         tokens, _ = self._login_success()
+        self.tokens = tokens
         self.client.force_authenticate(user=self.user.objects.get(), token=tokens.get('access'))
 
     def _company_registration_success(self):
@@ -73,6 +76,56 @@ class TestCoreEndpoints(APITestCase):
         assert response.status_code == 201
         company = self.user.objects.get()
         return company
+
+    # This test case will be used in another test that calls it because of the value it possesses
+    def _verify_forgot_password_code(self):
+        self._authenticate_with_tokens()
+        user = self.user.objects.get()
+
+        otp_secret = OTPSecret.objects.create(user=user, secret=pyotp.random_base32())
+        totp = pyotp.TOTP(otp_secret.secret, interval=600)
+        otp = totp.now()
+        data = {"email": user.email, "otp": otp}
+
+        response = self.client.post(reverse_lazy('verify-forgotten-password-code'), data=data)
+        assert response.status_code == 200
+        assert "Otp verified successfully" in response.data.get('message')
+        self.encrypted_password_token = response.data.get('data')
+
+        # Test with non-existent user
+        data = {"email": "nonexistent@example.com", "otp": "123456"}
+        response = self.client.post(reverse_lazy('verify-forgotten-password-code'), data=data)
+        assert response.status_code == 404
+        assert "User with this email not found" in response.data.get('message')
+
+        # Test with invalid otp
+        data = {"email": user.email, "otp": "123456"}
+        response = self.client.post(reverse_lazy('verify-forgotten-password-code'), data=data)
+        assert response.status_code == 400
+        assert "Invalid OTP" in response.data.get('message')
+
+        # Test with expired otp
+        otp_secret.created -= timedelta(minutes=20)
+        otp_secret.save()
+
+        totp = pyotp.TOTP(otp_secret.secret, interval=600)
+        otp = totp.now()
+
+        data = {"email": user.email, "otp": otp}
+
+        response = self.client.post(reverse_lazy('verify-forgotten-password-code'), data=data)
+        assert response.status_code == 400
+        assert "OTP has expired" in response.data.get('message')
+
+        # Test with no otp secret
+        otp_secret.delete()
+
+        if not OTPSecret.objects.filter(user=user).exists():
+            user_data = {'email': user.email, 'otp': '123456'}
+
+            response = self.client.post(reverse_lazy('verify-forgotten-password-code'), data=user_data)
+            assert response.status_code == 404
+            assert 'No OTP found for this account' in response.data.get('message')
 
     def test_employee_registration_conflict(self):
         already_registered_user = self._employee_registration_success()
@@ -243,3 +296,79 @@ class TestCoreEndpoints(APITestCase):
         response = self.client.post(reverse_lazy('change-email'), data=user_data)
         assert response.status_code == 400
         assert 'Invalid OTP' in response.data.get('message')
+
+    def test_send_new_email_verification_code(self):
+        self._authenticate_with_tokens()
+        data = {"email": "new@example.com"}
+
+        response = self.client.post(reverse_lazy('send-new-email-verification-code'), data=data)
+        assert response.status_code == 200
+        assert "Verification code sent successfully. Please check your mail" in response.data.get('message')
+
+    def test_send_new_email_verification_code_existing_user(self):
+        self._authenticate_with_tokens()
+        user = self.user.objects.get()
+        data = {"email": user.email}
+
+        response = self.client.post(reverse_lazy('send-new-email-verification-code'), data=data)
+        assert response.status_code == 409
+        assert "Account with this email already exists" in response.data.get('message')
+
+    def test_logout_success_and_token_error(self):
+        self._authenticate_with_tokens()
+
+        data = {'refresh': self.tokens.get('refresh')}
+
+        response = self.client.post(reverse_lazy('logout'), data=data)
+        assert response.status_code == 200
+        assert 'Logged out successfully' in response.data.get('message')
+
+        # Test with invalid token
+        response = self.client.post(reverse_lazy('logout'), data=data)
+        assert response.status_code == 400
+        assert 'Token is blacklisted' in response.data.get('message')
+
+    def test_refresh_token(self):
+        self._authenticate_with_tokens()
+
+        data = {'refresh': self.tokens.get('refresh')}
+
+        response = self.client.post(reverse_lazy('refresh-token'), data=data)
+        assert response.status_code == 200
+        assert 'Refreshed successfully' in response.data.get('message')
+
+    def test_request_forgot_password_code_success_and_non_existent_error(self):
+        self._authenticate_with_tokens()
+        user = self.user.objects.get()
+        data = {"email": user.email}
+
+        response = self.client.post(reverse_lazy('request-forgotten-password-code'), data=data)
+        assert response.status_code == 200
+        assert "Password code sent successfully" in response.data.get('message')
+
+        # Test with non-existent user
+        data = {"email": "nonexistent@example.com"}
+        response = self.client.post(reverse_lazy('request-forgotten-password-code'), data=data)
+        assert response.status_code == 404
+        assert "Account not found" in response.data.get('message')
+
+    def test_change_forgotten_password(self):
+        # setting the self.encrypted_password_token
+        self._verify_forgot_password_code()
+        data = {"password": "new_password"}
+
+        # Use reverse to generate the URL with the token included in the path
+        url = reverse_lazy("change-forgotten-password", kwargs={'token': self.encrypted_password_token})
+
+        response = self.client.post(url, data=data, format='json')
+
+        assert response.status_code == 202
+        assert "Password updated successfully" in response.data.get('message')
+
+    def test_change_password(self):
+        self._authenticate_with_tokens()
+        data = {"password": "new_password"}
+
+        response = self.client.post(reverse_lazy('change-password'), data=data)
+        assert response.status_code == 202
+        assert "Password updated successfully" in response.data.get('message')

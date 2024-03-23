@@ -391,6 +391,7 @@ class ResendEmailVerificationCodeView(APIView):
 
 
 class SendNewEmailVerificationCodeView(APIView):
+    permission_classes = (IsAuthenticated,)
     serializer_class = SendNewEmailVerificationCodeSerializer
 
     @extend_schema(
@@ -775,7 +776,7 @@ class RequestForgotPasswordCodeView(APIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        email = request.data.get('email')
+        email = serializer.validated_data.get('email')
 
         try:
             user = User.objects.get(email=email)
@@ -878,8 +879,8 @@ class VerifyForgotPasswordCodeView(APIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        email = request.data.get("email")
-        code = request.data.get("otp")
+        email = serializer.validated_data.get("email")
+        code = serializer.validated_data.get("otp")
 
         try:
             user = User.objects.select_related('otp_secret').get(email=email)

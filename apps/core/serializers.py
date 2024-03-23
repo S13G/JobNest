@@ -154,15 +154,6 @@ class LoginSerializer(sr.Serializer):
 
 class ChangePasswordSerializer(sr.Serializer):
     password = sr.CharField(max_length=50, min_length=6, write_only=True)
-    confirm_pass = sr.CharField(max_length=50, min_length=6, write_only=True)
-
-    def validate(self, attrs):
-        password = attrs.get('password')
-        confirm = attrs.get('confirm_pass')
-
-        if confirm != password:
-            raise sr.ValidationError({"confirm_pass": "Passwords do not match"})
-        return attrs
 
 
 class RequestNewPasswordCodeSerializer(sr.Serializer):
