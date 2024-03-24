@@ -6,59 +6,43 @@ from rest_framework import serializers as sr
 User = get_user_model()
 
 
+def validate_email_address(value: str) -> str:
+    """
+        Validates an email address.
+        Parameters:
+            value (str): The email address to be validated.
+        Returns:
+            str: The validated email address
+    """
+
+    try:
+        validate_email(value)
+    except sr.ValidationError:
+        raise sr.ValidationError("Invalid email address.")
+    return value
+
+
 class RegisterSerializer(sr.Serializer):
     email = sr.CharField()
     password = sr.CharField(write_only=True)
 
 
 class VerifyEmailSerializer(sr.Serializer):
-    email = sr.CharField()
+    email = sr.CharField(validators=[validate_email_address])
     otp = sr.IntegerField()
-
-    @staticmethod
-    def validate_email(value):
-        try:
-            validate_email(value)
-        except sr.ValidationError:
-            raise sr.ValidationError("Invalid email address.")
-        return value
 
 
 class ResendEmailVerificationCodeSerializer(sr.Serializer):
-    email = sr.CharField()
-
-    @staticmethod
-    def validate_email(value):
-        try:
-            validate_email(value)
-        except sr.ValidationError:
-            raise sr.ValidationError("Invalid email address.")
-        return value
+    email = sr.CharField(validators=[validate_email_address])
 
 
 class SendNewEmailVerificationCodeSerializer(sr.Serializer):
-    email = sr.CharField()
-
-    @staticmethod
-    def validate_email(value):
-        try:
-            validate_email(value)
-        except sr.ValidationError:
-            raise sr.ValidationError("Invalid email address.")
-        return value
+    email = sr.CharField(validators=[validate_email_address])
 
 
 class ChangeEmailSerializer(sr.Serializer):
-    email = sr.CharField()
+    email = sr.CharField(validators=[validate_email_address])
     otp = sr.IntegerField()
-
-    @staticmethod
-    def validate_email(value):
-        try:
-            validate_email(value)
-        except sr.ValidationError:
-            raise sr.ValidationError("Invalid email address.")
-        return value
 
 
 class EmployeeProfileSerializer(sr.Serializer):
@@ -140,16 +124,8 @@ class CompanyProfileSerializer(sr.Serializer):
 
 
 class LoginSerializer(sr.Serializer):
-    email = sr.CharField()
+    email = sr.CharField(validators=[validate_email_address])
     password = sr.CharField(write_only=True)
-
-    @staticmethod
-    def validate_email(value):
-        try:
-            validate_email(value)
-        except sr.ValidationError:
-            raise sr.ValidationError("Invalid email address.")
-        return value
 
 
 class ChangePasswordSerializer(sr.Serializer):
@@ -157,12 +133,4 @@ class ChangePasswordSerializer(sr.Serializer):
 
 
 class RequestNewPasswordCodeSerializer(sr.Serializer):
-    email = sr.CharField()
-
-    @staticmethod
-    def validate_email(value):
-        try:
-            validate_email(value)
-        except sr.ValidationError:
-            raise sr.ValidationError("Invalid email address.")
-        return value
+    email = sr.CharField(validators=[validate_email_address])

@@ -32,8 +32,15 @@ class TestCoreEndpoints(APITestCase):
         employee = self.user.objects.get()
         return employee
 
+    def _company_registration_success(self):
+        # Test successful registration
+        response = self.client.post(reverse_lazy('company-registration'), data=self.user_data)
+        self.assertEqual(response.status_code, 201)
+        company = self.user.objects.get()
+        return company
+
     def _email_verification_success(self):
-        # Using employee for the verification process since its similar to the company
+        # Using employee for the verification process since it's similar to the company
         employee = self._employee_registration_success()
 
         # Test successful email verification
@@ -50,6 +57,24 @@ class TestCoreEndpoints(APITestCase):
         assert 'Email verification successful' in response.data.get('message')
         return employee, otp_secret
 
+    def _company_email_verification_success(self):
+        # Using company for the verification process
+        company = self._company_registration_success()
+
+        # Test successful email verification
+        otp_secret = OTPSecret.objects.get(user=company)
+
+        # Generate the OTP using the secret
+        totp = pyotp.TOTP(otp_secret.secret, interval=600)
+        otp = totp.now()
+
+        user_data = {'email': company.email, 'otp': otp}
+
+        response = self.client.post(reverse_lazy('verify-email'), data=user_data)
+        assert response.status_code == 200
+        assert 'Email verification successful' in response.data.get('message')
+        return company, otp_secret
+
     def _login_success(self):
         # Test with registered employee profile
         employee, _ = self._email_verification_success()
@@ -65,17 +90,30 @@ class TestCoreEndpoints(APITestCase):
         profile_data = response.data.get('data').get('profile_data')
         return tokens, profile_data
 
+    def _company_login_success(self):
+        # Test with registered company profile
+        company, _ = self._company_email_verification_success()
+
+        user_data = {"email": company.email, "password": 'test_password'}
+
+        response = self.client.post(reverse_lazy('login'), data=user_data)
+        assert response.status_code == 200
+        assert 'Logged in successfully' in response.data.get('message')
+        assert 'tokens' in response.data.get('data')
+        assert 'profile_data' in response.data.get('data')
+        tokens = response.data.get('data').get('tokens')
+        profile_data = response.data.get('data').get('profile_data')
+        return tokens, profile_data
+
     def _authenticate_with_tokens(self):
         tokens, _ = self._login_success()
         self.tokens = tokens
         self.client.force_authenticate(user=self.user.objects.get(), token=tokens.get('access'))
 
-    def _company_registration_success(self):
-        # Test successful registration
-        response = self.client.post(reverse_lazy('company-registration'), data=self.user_data)
-        assert response.status_code == 201
-        company = self.user.objects.get()
-        return company
+    def _authenticate_with_company_tokens(self):
+        tokens, _ = self._company_login_success()
+        self.tokens = tokens
+        self.client.force_authenticate(user=self.user.objects.get(), token=tokens.get('access'))
 
     # This test case will be used in another test that calls it because of the value it possesses
     def _verify_forgot_password_code(self):
@@ -372,3 +410,61 @@ class TestCoreEndpoints(APITestCase):
         response = self.client.post(reverse_lazy('change-password'), data=data)
         assert response.status_code == 202
         assert "Password updated successfully" in response.data.get('message')
+
+    def test_retrieve_employee_profile(self):
+        self._authenticate_with_tokens()
+        response = self.client.get(reverse_lazy('get-update-delete-employee-profile'))
+        assert response.status_code == 200
+        assert "Retrieved profile successfully" in response.data.get('message')
+
+        # Test the error by deleting the employee profile
+        employee_profile = self.user.objects.get().employee_profile
+        employee_profile.delete()
+
+        response = self.client.get(reverse_lazy('get-update-delete-employee-profile'))
+        assert response.status_code == 404
+        assert "No profile found for this user" in response.data.get('message')
+
+    def test_update_employee_profile(self):
+        self._authenticate_with_tokens()
+        data = {"first_name": "new_first_name"}
+
+        response = self.client.patch(reverse_lazy('get-update-delete-employee-profile'), data=data)
+        assert response.status_code == 202
+        assert "Updated profile successfully" in response.data.get('message')
+
+    def test_delete_employee_account(self):
+        self._authenticate_with_tokens()
+        self.user.objects.get()
+        response = self.client.delete(reverse_lazy('get-update-delete-employee-profile'))
+        assert response.status_code == 204
+        assert "Account deleted successfully" in response.data.get('message')
+
+    def test_retrieve_company_profile(self):
+        self._authenticate_with_company_tokens()
+        response = self.client.get(reverse_lazy('get-update-delete-company-profile'))
+        assert response.status_code == 200
+        assert "Retrieved profile successfully" in response.data.get('message')
+
+        # Test the error by deleting the employee profile
+        company_profile = self.user.objects.get().company_profile
+        company_profile.delete()
+
+        response = self.client.get(reverse_lazy('get-update-delete-company-profile'))
+        assert response.status_code == 404
+        assert "No profile found for this user" in response.data.get('message')
+
+    def test_update_company_profile(self):
+        self._authenticate_with_company_tokens()
+        data = {"first_name": "new_first_name"}
+
+        response = self.client.patch(reverse_lazy('get-update-delete-company-profile'), data=data)
+        assert response.status_code == 202
+        assert "Updated profile successfully" in response.data.get('message')
+
+    def test_delete_company_account(self):
+        self._authenticate_with_company_tokens()
+        self.user.objects.get()
+        response = self.client.delete(reverse_lazy('get-update-delete-company-profile'))
+        assert response.status_code == 204
+        assert "Account deleted successfully" in response.data.get('message')

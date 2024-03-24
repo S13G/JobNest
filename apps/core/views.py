@@ -538,7 +538,7 @@ class ChangeEmailView(APIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         new_email = serializer.validated_data.get('email')
-        otp = serializer.validated_data.get('otp')
+        otp = request.data.get('otp')
         user = request.user
 
         if user.email == new_email:
@@ -880,7 +880,7 @@ class VerifyForgotPasswordCodeView(APIView):
         serializer.is_valid(raise_exception=True)
 
         email = serializer.validated_data.get("email")
-        code = serializer.validated_data.get("otp")
+        code = request.data.get("otp")
 
         try:
             user = User.objects.select_related('otp_secret').get(email=email)
@@ -1092,7 +1092,7 @@ class RetrieveUpdateDeleteEmployeeProfileView(APIView):
         """,
         tags=['Employee Profile'],
         responses={
-            status.HTTP_200_OK: OpenApiResponse(
+            status.HTTP_204_NO_CONTENT: OpenApiResponse(
                 response={"status": "success", "message": "Deleted successfully"},
                 description="Deleted successfully",
                 examples=[
@@ -1100,7 +1100,7 @@ class RetrieveUpdateDeleteEmployeeProfileView(APIView):
                         name="Deleted response",
                         value={
                             "status": "success",
-                            "message": "Deleted successfully"
+                            "message": "Account deleted successfully"
                         }
                     )
                 ]
@@ -1110,7 +1110,7 @@ class RetrieveUpdateDeleteEmployeeProfileView(APIView):
     def delete(self, request):
         user = request.user
         user.delete()
-        return CustomResponse.success(message="Deleted successfully")
+        return CustomResponse.success(message="Account deleted successfully", status_code=status.HTTP_204_NO_CONTENT)
 
 
 """
@@ -1200,7 +1200,7 @@ class RetrieveUpdateDeleteCompanyProfileView(APIView):
         """,
         tags=['Company Profile'],
         responses={
-            status.HTTP_200_OK: OpenApiResponse(
+            status.HTTP_204_NO_CONTENT: OpenApiResponse(
                 response={"status": "success", "message": "Deleted successfully"},
                 description="Deleted successfully",
                 examples=[
@@ -1208,7 +1208,7 @@ class RetrieveUpdateDeleteCompanyProfileView(APIView):
                         name="Deleted response",
                         value={
                             "status": "success",
-                            "message": "Deleted successfully"
+                            "message": "Account deleted successfully"
                         }
                     )
                 ]
@@ -1218,4 +1218,4 @@ class RetrieveUpdateDeleteCompanyProfileView(APIView):
     def delete(self, request):
         user = request.user
         user.delete()
-        return CustomResponse.success(message="Deleted successfully")
+        return CustomResponse.success(message="Account deleted successfully", status_code=status.HTTP_204_NO_CONTENT)
