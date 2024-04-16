@@ -78,7 +78,7 @@ REST_FRAMEWORK = {
     ),
     "COERCE_DECIMAL_TO_STRING": False,
     "DEFAULT_PAGINATION_CLASS": "apps.common.paginator.CustomPagination",
-    "EXCEPTION_HANDLER": "apps.common.exceptions.custom_exception_handler",
+    # "EXCEPTION_HANDLER": "apps.common.exceptions.custom_exception_handler",
     "PAGE_SIZE": 30,
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -89,6 +89,27 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {"anon": "5000/day", "user": "10000/day"},
     "NON_FIELD_ERRORS_KEY": "error",
 }
+
+CORS_ALLOW_HEADERS = (
+    "accept",
+    "accept-language",
+    "access-control-request-headers",
+    "access-control-request-method",
+    "authorization",
+    "content-disposition",
+    "content-encoding",
+    "content-length",
+    "content-type",
+    "cookie",
+    "host",
+    "origin",
+    "referer",
+    "user-agent",
+    "x-forwarded-for",
+    "x-requested-with",
+)
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -215,6 +236,10 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+MEDIA_URL = "media/"
+
+MEDIA_ROOT = BASE_DIR / "static/media"
+
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -268,21 +293,6 @@ JAZZMIN_SETTINGS = {
     "search_model": [],
     # Field name on user model that contains avatar ImageField/URLField/Charfield or a callable that receives the user
     # "user_avatar": "avatar",
-
-    ############
-    # Top Menu #
-    ############
-    # Links to put along the top menu
-    "topmenu_links": [
-        # Url that gets reversed (Permissions can be added)
-        {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
-        # model admin to link to (Permissions checked against model)
-        {"model": "core.User"},
-        # App with dropdown menu to all its models pages (Permissions checked against models)
-        {"app": "core"},
-        {"app", "jobs"},
-        {"app": "misc"},
-    ],
 
     #############
     # User Menu #

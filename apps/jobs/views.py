@@ -181,7 +181,7 @@ class JobsHomeView(APIView):
                 "id": tip.id,
                 "title": tip.title,
                 "author_image": tip.author_image_url
-            },
+            } if tip else {},
             "job_types": [
                 {
                     "id": job_type.id,
@@ -198,7 +198,7 @@ class JobsHomeView(APIView):
                     "location": job.location,
                     "type": job.type.name,
                     "salary": job.salary,
-                    "is_saved": job.is_saved_by_user(request.user)
+                    "is_saved": job.is_saved_by_u0ser(request.user)
                 }
                 for job in queryset
             ]

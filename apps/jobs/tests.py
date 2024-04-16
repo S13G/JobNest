@@ -1,11 +1,17 @@
+import pyotp
+from django.contrib.auth import get_user_model
+from django.urls import reverse_lazy
+from rest_framework.test import APITestCase, APIClient
+
+from apps.core.models import OTPSecret
+
+
 class TestCoreEndpoints(APITestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.fake = Faker()
         cls.user = get_user_model()
 
     def setUp(self):
-        self.client = APIClient()
         self.user_data = {
             'email': 'test@example.com',
             'password': 'test_password',
@@ -18,10 +24,7 @@ class TestCoreEndpoints(APITestCase):
         self.verify_email_url = reverse_lazy('verify-email')
         self.login_url = reverse_lazy('login')
         self.refresh_token_url = reverse_lazy('refresh-token')
-        self.retrieve_all_tips = reverse_lazy('retrieve-all-tips')
-        self.retrieve_single_tip = reverse_lazy('retrieve-tip')
-        self.filter_faqs = reverse_lazy('filter-all-faqs')
-        self.retrieve_faq_types = reverse_lazy('retrieve-all-faqs-types')
+        self.home_url = reverse_lazy('jobs-home')
 
     def _employee_registration_success(self):
         # Test successful registration
@@ -112,3 +115,13 @@ class TestCoreEndpoints(APITestCase):
         tokens, _ = self._company_login_success()
         self.tokens = tokens
         self.client.force_authenticate(user=self.user.objects.get(), token=tokens.get('access'))
+
+    def test_home_view(self):
+        self._authenticate_with_tokens()
+
+        response = self.client.get(self.home_url)
+        self.assertEqual(response.status_code, 200)
+
+        # adding 'type' query parameter to filter results
+        response = self.client.get(self.home_url, {'type': 'FULL_TIME'})
+        self.assertEqual(response.status_code, 200)

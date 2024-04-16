@@ -14,6 +14,6 @@ class Command(BaseCommand):
                 email=config('ADMIN_EMAIL'),
                 password=config('ADMIN_PASSWORD')
             )
-            print('Superuser has been created.')
+            self.stdout.write('Superuser has been created.')
         else:
-            print("Superuser already exists.")
+            self.stderr.write("Superuser already exists.")
