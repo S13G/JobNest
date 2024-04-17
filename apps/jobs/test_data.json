@@ -1,0 +1,59 @@
+{
+  "jobs_data": [
+    {
+      "title": "Software Engineer",
+      "image": null,
+      "salary": 1000.00,
+      "location": "New York",
+      "active": true
+    },
+    {
+      "title": "Backend Engineer",
+      "image": null,
+      "salary": 10000.00,
+      "location": "New Zealand",
+      "active": true
+    },
+    {
+      "title": "Frontend Developer",
+      "image": null,
+      "salary": 8000.00,
+      "location": "San Francisco",
+      "active": true
+    },
+    {
+      "title": "Data Scientist",
+      "image": null,
+      "salary": 12000.00,
+      "location": "Chicago",
+      "active": true
+    },
+    {
+      "title": "Product Manager",
+      "image": null,
+      "salary": 9500.00,
+      "location": "Seattle",
+      "active": true
+    },
+    {
+      "title": "UI/UX Designer",
+      "image": null,
+      "salary": 8500.00,
+      "location": "Los Angeles",
+      "active": true
+    },
+    {
+      "title": "Marketing Specialist",
+      "image": null,
+      "salary": 7500.00,
+      "location": "London",
+      "active": true
+    }
+  ],
+  "job_types_data": [
+    "FULL_TIME",
+    "PART_TIME",
+    "INTERNSHIP"
+  ]
+}
+

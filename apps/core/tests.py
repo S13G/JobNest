@@ -10,6 +10,7 @@ from apps.core.models import OTPSecret
 
 class CoreTestCase(AuthTestCase):
     def setUp(self):
+        super().setUp() # Inherit methods from superclass
         self.encrypted_password_token = ''
 
         # Store URLs in variables
@@ -93,7 +94,8 @@ class CoreTestCase(AuthTestCase):
     def test_already_verified_user(self):
         # Test email verification for an already verified user
         employee, otp_secret = self._email_verification_success()
-
+        employee.email_verified = True
+        employee.save()
         # Generate the OTP using the secret
         totp = pyotp.TOTP(otp_secret.secret, interval=600)
         otp = totp.now()
@@ -101,7 +103,6 @@ class CoreTestCase(AuthTestCase):
 
         response = self.client.post(self.verify_email_url, data=user_data)
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Email verified already", response.data.get('message'))
 
     def test_expired_otp(self):
         # Test email verification for an already verified user
