@@ -4,49 +4,49 @@
       "title": "Software Engineer",
       "image": null,
       "salary": 1000.00,
-      "location": "New York",
+      "location": "PT",
       "active": true
     },
     {
       "title": "Backend Engineer",
       "image": null,
       "salary": 10000.00,
-      "location": "New Zealand",
+      "location": "QA",
       "active": true
     },
     {
       "title": "Frontend Developer",
       "image": null,
       "salary": 8000.00,
-      "location": "San Francisco",
+      "location": "SL",
       "active": true
     },
     {
       "title": "Data Scientist",
       "image": null,
       "salary": 12000.00,
-      "location": "Chicago",
+      "location": "CN",
       "active": true
     },
     {
       "title": "Product Manager",
       "image": null,
       "salary": 9500.00,
-      "location": "Seattle",
+      "location": "IE",
       "active": true
     },
     {
       "title": "UI/UX Designer",
       "image": null,
       "salary": 8500.00,
-      "location": "Los Angeles",
+      "location": "HR",
       "active": true
     },
     {
       "title": "Marketing Specialist",
       "image": null,
       "salary": 7500.00,
-      "location": "London",
+      "location": "GB",
       "active": true
     }
   ],

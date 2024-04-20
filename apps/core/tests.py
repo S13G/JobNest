@@ -372,7 +372,9 @@ class CoreTestCase(AuthTestCase):
 
     def test_delete_company_account(self):
         self._authenticate_with_company_tokens()
-        self.user.objects.get()
+
+        self.user.objects.get(email=self.recruiter_data.get('email'))
+
         response = self.client.delete(self.company_profile_methods_url)
         self.assertEqual(response.status_code, 204)
         self.assertIn("Account deleted successfully", response.data.get('message'))

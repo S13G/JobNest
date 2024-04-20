@@ -10,10 +10,17 @@ class AuthTestCase(APITestCase):
 
     def setUp(self):
         self.user = get_user_model()
-        self.user_data = {
+
+        self.employee_data = {
             'email': 'test@example.com',
             'password': 'test_password',
         }
+
+        self.recruiter_data = {
+            'email': 'testrecruiter@example.com',
+            'password': 'testpassword',
+        }
+
         self.tokens = ''
 
         # Store URLs in variables
@@ -26,16 +33,16 @@ class AuthTestCase(APITestCase):
 
     def _employee_registration_success(self):
         # Test successful registration
-        response = self.client.post(self.employee_registration_url, data=self.user_data)
+        response = self.client.post(self.employee_registration_url, data=self.employee_data)
         self.assertEqual(response.status_code, 201)
-        employee = self.user.objects.get()
+        employee = self.user.objects.get(email=self.employee_data.get('email'))
         return employee
 
     def _company_registration_success(self):
         # Test successful registration
-        response = self.client.post(self.company_registration_url, data=self.user_data)
+        response = self.client.post(self.company_registration_url, data=self.recruiter_data)
         self.assertEqual(response.status_code, 201)
-        company = self.user.objects.get()
+        company = self.user.objects.get(email=self.recruiter_data.get('email'))
         return company
 
     def _email_verification_success(self):
@@ -93,9 +100,10 @@ class AuthTestCase(APITestCase):
         # Test with registered company profile
         company, _ = self._company_email_verification_success()
 
-        user_data = {"email": company.email, "password": 'test_password'}
+        user_data = {"email": company.email, "password": 'testpassword'}
 
         response = self.client.post(self.login_url, data=user_data)
+
         self.assertEqual(response.status_code, 200)
         self.assertIn('Logged in successfully', response.data.get('message'))
         self.assertIn('tokens', response.data.get('data'))
@@ -107,9 +115,11 @@ class AuthTestCase(APITestCase):
     def _authenticate_with_tokens(self):
         tokens, _ = self._login_success()
         self.tokens = tokens
-        self.client.force_authenticate(user=self.user.objects.get(), token=tokens.get('access'))
+        self.client.force_authenticate(user=self.user.objects.get(email=self.employee_data.get('email')),
+                                       token=tokens.get('access'))
 
     def _authenticate_with_company_tokens(self):
         tokens, _ = self._company_login_success()
         self.tokens = tokens
-        self.client.force_authenticate(user=self.user.objects.get(), token=tokens.get('access'))
+        self.client.force_authenticate(user=self.user.objects.get(email=self.recruiter_data.get('email')),
+                                       token=tokens.get('access'))

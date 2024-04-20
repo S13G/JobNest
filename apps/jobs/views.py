@@ -198,7 +198,7 @@ class JobsHomeView(APIView):
                     "location": job.location,
                     "type": job.type.name,
                     "salary": job.salary,
-                    "is_saved": job.is_saved_by_u0ser(request.user)
+                    "is_saved": job.is_saved_by_user(request.user)
                 }
                 for job in queryset
             ]
