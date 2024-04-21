@@ -429,46 +429,28 @@ class AppliedJobsSearchView(APIView):
                     )
                 ]
             ),
-            status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                response={"status": "failure", "message": "No applied jobs found", "code": "non_existent"},
-                description="No applied jobs found",
-                examples=[
-                    OpenApiExample(
-                        name="Error Response",
-                        value={
-                            "status": "failure",
-                            "message": "No applied jobs found",
-                            "code": "non_existent",
-                        }
-                    )
-                ]
-            ),
         }
     )
     def get(self, request, *args, **kwargs):
-        search = self.request.query_params.get('search', '')
+        search = self.request.query_params.get('search')
 
-        try:
-            applied_jobs = AppliedJob.objects.filter(
-                Q(job__title__icontains=search) |
-                Q(job__location__icontains=search) | Q(job__type__name__icontains=search) |
-                Q(job__recruiter__company_profile__name__icontains=search) |
-                Q(status__icontains=search)).order_by('-created')
+        applied_jobs = AppliedJob.objects.filter(
+            Q(job__title__icontains=search) |
+            Q(job__location__icontains=search) | Q(job__type__name__icontains=search) |
+            Q(job__recruiter__company_profile__name__icontains=search) |
+            Q(status__icontains=search)).order_by('-created')
 
-            data = [
-                {
-                    "id": single_job.id,
-                    "title": single_job.job.title,
-                    "recruiter": single_job.job.recruiter.company_profile.name,
-                    "job_image": single_job.job.image_url,
-                    "status": single_job.status,
-                }
-                for single_job in applied_jobs
-            ]
-            return CustomResponse.success(message="Successfully retrieved searched applied jobs", data=data)
-
-        except AppliedJob.DoesNotExist:
-            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="No applied jobs found", data={}, )
+        data = [
+            {
+                "id": single_job.id,
+                "title": single_job.job.title,
+                "recruiter": single_job.job.recruiter.company_profile.name,
+                "job_image": single_job.job.image_url,
+                "status": single_job.status,
+            }
+            for single_job in applied_jobs
+        ]
+        return CustomResponse.success(message="Successfully retrieved searched applied jobs", data=data)
 
 
 class AppliedJobDetailsView(APIView):
@@ -529,10 +511,11 @@ class AppliedJobDetailsView(APIView):
     def get(self, request, *args, **kwargs):
         applied_job_id = self.kwargs.get('id')
 
-        applied_job = AppliedJob.objects.get(id=applied_job_id)
-
-        if applied_job is None:
-            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Applied job with this id does not exist")
+        try:
+            applied_job = AppliedJob.objects.get(id=applied_job_id)
+        except AppliedJob.DoesNotExist:
+            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Applied job with this id does not exist",
+                               status_code=status.HTTP_404_NOT_FOUND)
 
         data = {
             "id": applied_job.id,
@@ -717,7 +700,7 @@ class CreateDeleteSavedJobsView(APIView):
         ),
         tags=["Job (Seeker)"],
         responses={
-            status.HTTP_200_OK: OpenApiResponse(
+            status.HTTP_204_NO_CONTENT: OpenApiResponse(
                 response={"status": "success", "message": "Successfully deleted saved job"},
                 description="Successfully deleted saved job",
                 examples=[
@@ -757,7 +740,7 @@ class CreateDeleteSavedJobsView(APIView):
                                status_code=status.HTTP_404_NOT_FOUND)
 
         saved_job.delete()
-        return CustomResponse.success(message="Successfully deleted saved job")
+        return CustomResponse.success(message="Successfully deleted saved job", status_code=status.HTTP_204_NO_CONTENT)
 
 
 class RetrieveAllSavedJobsView(APIView):
