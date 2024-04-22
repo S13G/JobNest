@@ -848,48 +848,30 @@ class SearchVacanciesView(APIView):
                     )
                 ]
             ),
-            status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                response={"status": "failure", "message": "No vacancies found", "code": "non_existent"},
-                description="No vacancies found",
-                examples=[
-                    OpenApiExample(
-                        name="Error Response",
-                        value={
-                            "status": "failure",
-                            "message": "No vacancies found",
-                            "code": "non_existent",
-                        }
-                    )
-                ]
-            ),
         }
     )
     def get(self, request, *args, **kwargs):
         search = self.request.query_params.get('search')
 
-        try:
-            jobs = Job.objects.filter(
-                Q(title__icontains=search) |
-                Q(location__icontains=search) | Q(type__name__icontains=search) |
-                Q(recruiter__company_profile__name__icontains=search)).order_by('-created')
+        jobs = Job.objects.filter(
+            Q(title__icontains=search) |
+            Q(location__icontains=search) | Q(type__name__icontains=search) |
+            Q(recruiter__company_profile__name__icontains=search)).order_by('-created')
 
-            data = [
-                {
-                    "id": single_job.id,
-                    "title": single_job.title,
-                    "recruiter": single_job.recruiter.company_profile.name,
-                    "job_image": single_job.image_url,
-                    "location": single_job.location,
-                    "type": single_job.type.name,
-                    "salary": single_job.salary,
-                    "active": single_job.active,
-                }
-                for single_job in jobs
-            ]
-            return CustomResponse.success(message="Successfully retrieved searched vacancies", data=data)
-        except Job.DoesNotExist:
-            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="No vacancies found",
-                               status_code=status.HTTP_404_NOT_FOUND)
+        data = [
+            {
+                "id": single_job.id,
+                "title": single_job.title,
+                "recruiter": single_job.recruiter.company_profile.name,
+                "job_image": single_job.image_url,
+                "location": single_job.location,
+                "type": single_job.type.name,
+                "salary": single_job.salary,
+                "active": single_job.active,
+            }
+            for single_job in jobs
+        ]
+        return CustomResponse.success(message="Successfully retrieved searched vacancies", data=data)
 
 
 class VacanciesHomeView(APIView):
@@ -1184,13 +1166,13 @@ class UpdateDeleteVacancyView(APIView):
             # Try to get the existing requirement
             existing_requirement, created = JobRequirement.objects.get_or_create(job=job_instance,
                                                                                  requirement=requirement)
-            # If the requirement didn't exist, we need to update it
+            # If the requirement exists, we need to update it
             if not created:
-                existing_requirement.requirement = requirement.requirement
+                existing_requirement.requirement = requirement
                 requirements_to_create.append(existing_requirement)
 
         # Use bulk_create() to update the existing requirements
-        JobRequirement.objects.bulk_create(requirements_to_create)
+        JobRequirement.objects.bulk_update(requirements_to_create, fields=['requirement'])
 
         data = {
             "id": job_instance.id,
@@ -1199,7 +1181,8 @@ class UpdateDeleteVacancyView(APIView):
             "recruiter": job_instance.recruiter.company_profile.name,
         }
 
-        return CustomResponse.success(message="Successfully updated a job", data=data)
+        return CustomResponse.success(message="Successfully updated a job", data=data,
+                                      status_code=status.HTTP_202_ACCEPTED)
 
     @extend_schema(
         summary="Delete a job",
@@ -1210,7 +1193,7 @@ class UpdateDeleteVacancyView(APIView):
         ),
         tags=['Job (Recruiter)'],
         responses={
-            status.HTTP_200_OK: OpenApiResponse(
+            status.HTTP_204_NO_CONTENT: OpenApiResponse(
                 response={"status": "success", "message": "Successfully deleted a job"},
                 description="Successfully deleted a job",
                 examples=[
@@ -1249,7 +1232,7 @@ class UpdateDeleteVacancyView(APIView):
                                status_code=status.HTTP_404_NOT_FOUND)
 
         job_instance.delete()
-        return CustomResponse.success(message="Successfully deleted a job")
+        return CustomResponse.success(message="Successfully deleted a job", status_code=status.HTTP_204_NO_CONTENT)
 
 
 class UpdateAppliedJobView(APIView):
@@ -1355,4 +1338,5 @@ class UpdateAppliedJobView(APIView):
             "interview_date": applied_job.interview_date or ""
         }
 
-        return CustomResponse.success(message="Successfully updated an applied job", data=data)
+        return CustomResponse.success(message="Successfully updated an applied job", data=data,
+                                      status_code=status.HTTP_202_ACCEPTED)

@@ -35,6 +35,7 @@ class AuthTestCase(APITestCase):
         # Test successful registration
         response = self.client.post(self.employee_registration_url, data=self.employee_data)
         self.assertEqual(response.status_code, 201)
+
         employee = self.user.objects.get(email=self.employee_data.get('email'))
         return employee
 
@@ -42,6 +43,7 @@ class AuthTestCase(APITestCase):
         # Test successful registration
         response = self.client.post(self.company_registration_url, data=self.recruiter_data)
         self.assertEqual(response.status_code, 201)
+
         company = self.user.objects.get(email=self.recruiter_data.get('email'))
         return company
 
@@ -59,8 +61,10 @@ class AuthTestCase(APITestCase):
         user_data = {'email': employee.email, 'otp': otp}
 
         response = self.client.post(self.verify_email_url, data=user_data)
+
         self.assertEqual(response.status_code, 200)
         self.assertIn('Email verification successful', response.data.get('message'))
+
         return employee, otp_secret
 
     def _company_email_verification_success(self):
@@ -77,8 +81,10 @@ class AuthTestCase(APITestCase):
         user_data = {'email': company.email, 'otp': otp}
 
         response = self.client.post(self.verify_email_url, data=user_data)
+
         self.assertEqual(response.status_code, 200)
         self.assertIn('Email verification successful', response.data.get('message'))
+
         return company, otp_secret
 
     def _login_success(self):
@@ -88,10 +94,12 @@ class AuthTestCase(APITestCase):
         user_data = {"email": employee.email, "password": 'test_password'}
 
         response = self.client.post(self.login_url, data=user_data)
+
         self.assertEqual(response.status_code, 200)
         self.assertIn('Logged in successfully', response.data.get('message'))
         self.assertIn('tokens', response.data.get('data'))
         self.assertIn('profile_data', response.data.get('data'))
+
         tokens = response.data.get('data').get('tokens')
         profile_data = response.data.get('data').get('profile_data')
         return tokens, profile_data
@@ -108,6 +116,7 @@ class AuthTestCase(APITestCase):
         self.assertIn('Logged in successfully', response.data.get('message'))
         self.assertIn('tokens', response.data.get('data'))
         self.assertIn('profile_data', response.data.get('data'))
+
         tokens = response.data.get('data').get('tokens')
         profile_data = response.data.get('data').get('profile_data')
         return tokens, profile_data
