@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 import pycountry
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.models import PermissionsMixin
@@ -21,19 +19,10 @@ class User(AbstractBaseUser, BaseModel, PermissionsMixin):
     email_verified = models.BooleanField(default=False)
     google_provider = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=False)
 
     USERNAME_FIELD = "email"
 
     objects = CustomUserManager()
-
-    # Generate JWT tokens for the user(using this specifically for oauth)
-    def tokens(self):
-        refresh = RefreshToken.for_user(self)
-        return {
-            "access": str(refresh.access_token),
-            "refresh": str(refresh)
-        }
 
     def __str__(self):
         return self.email
@@ -42,15 +31,13 @@ class User(AbstractBaseUser, BaseModel, PermissionsMixin):
     def profile_image_url(self):
         return self.avatar.url if self.avatar else ""
 
-
-class OTPSecret(BaseModel):
-    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="otp_secret", null=True)
-    secret = models.CharField(max_length=255, null=True)
-    created = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.user.email
+    # Generate JWT tokens for the user(using this specifically for oauth)
+    def tokens(self):
+        refresh = RefreshToken.for_user(self)
+        return {
+            "access": str(refresh.access_token),
+            "refresh": str(refresh)
+        }
 
 
 class EmployeeProfile(BaseModel):

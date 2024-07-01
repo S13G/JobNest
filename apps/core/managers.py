@@ -65,3 +65,9 @@ class CustomUserManager(BaseUserManager):
         extra_fields = self.validate_superuser(email, password, **extra_fields)
         user = self._create_user(email, password, **extra_fields)
         return user
+
+    def get_or_none(self, **kwargs):
+        try:
+            return self.get(**kwargs)
+        except self.model.DoesNotExist:
+            return None

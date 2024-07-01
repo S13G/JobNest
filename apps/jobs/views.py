@@ -82,7 +82,7 @@ class SearchJobsView(APIView):
         }
     )
     def get(self, request, *args, **kwargs):
-        search = self.request.query_params.get('search', '')
+        search = request.query_params.get('search', '')
 
         try:
             jobs = Job.objects.filter(
@@ -261,7 +261,7 @@ class JobDetailsView(APIView):
         }
     )
     def get(self, request, *args, **kwargs):
-        job_id = self.kwargs.get('id')
+        job_id = kwargs.get('id')
 
         try:
             job = Job.objects.get(id=job_id)
@@ -355,9 +355,9 @@ class JobApplyView(APIView):
             )
         }
     )
-    @transaction.atomic()
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
-        job_id = self.kwargs.get('id')
+        job_id = kwargs.get('id')
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -432,7 +432,7 @@ class AppliedJobsSearchView(APIView):
         }
     )
     def get(self, request, *args, **kwargs):
-        search = self.request.query_params.get('search')
+        search = request.query_params.get('search')
 
         applied_jobs = AppliedJob.objects.filter(
             Q(job__title__icontains=search) |
@@ -509,7 +509,7 @@ class AppliedJobDetailsView(APIView):
         }
     )
     def get(self, request, *args, **kwargs):
-        applied_job_id = self.kwargs.get('id')
+        applied_job_id = kwargs.get('id')
 
         try:
             applied_job = AppliedJob.objects.get(id=applied_job_id)
@@ -664,9 +664,9 @@ class CreateDeleteSavedJobsView(APIView):
             )
         }
     )
-    @transaction.atomic()
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
-        job_id = self.kwargs.get('id')
+        job_id = kwargs.get('id')
         job = Job.objects.get(id=job_id)
 
         if job is None:
@@ -731,7 +731,7 @@ class CreateDeleteSavedJobsView(APIView):
         }
     )
     def delete(self, request, *args, **kwargs):
-        saved_job_id = self.kwargs.get('id')
+        saved_job_id = kwargs.get('id')
 
         try:
             saved_job = SavedJob.objects.get(id=saved_job_id, user=request.user)
@@ -851,7 +851,7 @@ class SearchVacanciesView(APIView):
         }
     )
     def get(self, request, *args, **kwargs):
-        search = self.request.query_params.get('search')
+        search = request.query_params.get('search')
 
         jobs = Job.objects.filter(
             Q(title__icontains=search) |
@@ -1062,7 +1062,7 @@ class CreateVacanciesView(APIView):
             )
         }
     )
-    @transaction.atomic()
+    @transaction.atomic
     def post(self, request):
         try:
             serializer = self.serializer_class(data=request.data)
@@ -1141,9 +1141,9 @@ class UpdateDeleteVacancyView(APIView):
             ),
         }
     )
-    @transaction.atomic()
+    @transaction.atomic
     def patch(self, request, *args, **kwargs):
-        vacancy_id = self.kwargs.get('id')
+        vacancy_id = kwargs.get('id')
 
         try:
             job_instance = Job.objects.get(id=vacancy_id, recruiter=request.user)
@@ -1223,7 +1223,7 @@ class UpdateDeleteVacancyView(APIView):
         }
     )
     def delete(self, request, *args, **kwargs):
-        vacancy_id = self.kwargs.get('id')
+        vacancy_id = kwargs.get('id')
 
         try:
             job_instance = Job.objects.get(id=vacancy_id, recruiter=request.user)
@@ -1290,9 +1290,9 @@ class UpdateAppliedJobView(APIView):
             ),
         }
     )
-    @transaction.atomic()
+    @transaction.atomic
     def patch(self, request, *args, **kwargs):
-        applied_job_id = self.kwargs.get('id')
+        applied_job_id = kwargs.get('id')
 
         try:
             applied_job = AppliedJob.objects.get(id=applied_job_id, job__recruiter=request.user)

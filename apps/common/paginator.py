@@ -1,4 +1,5 @@
 from django.core.paginator import InvalidPage
+from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 
 from apps.common.errors import ErrorCode
@@ -6,9 +7,7 @@ from apps.common.exceptions import RequestError
 
 
 class CustomPagination(PageNumberPagination):
-    page_size_query_param = (
-        "page_size"  # Optional: allow clients to override the page size
-    )
+    page_size_query_param = "page_size"  # Optional: allow clients to override the page size
 
     def paginate_queryset(self, queryset, request, view=None):
         """
@@ -26,7 +25,7 @@ class CustomPagination(PageNumberPagination):
             self.page = paginator.page(page_number)
         except InvalidPage:
             raise RequestError(
-                err_code=ErrorCode.INVALID_PAGE, err_msg="Invalid Page", status_code=404
+                err_code=ErrorCode.INVALID_PAGE, err_msg="Invalid Page", status_code=status.HTTP_404_NOT_FOUND
             )
 
         self.request = request
@@ -36,4 +35,13 @@ class CustomPagination(PageNumberPagination):
             "per_page": page_size,
             "current_page": page_number,
             "last_page": paginator.num_pages,
+        }
+
+    def get_paginated_response(self, data):
+        return {
+            "per_page": self.page.paginator.per_page,
+            "current_page": self.page.number,
+            "last_page": self.page.paginator.num_pages,
+            "items": data,
+
         }

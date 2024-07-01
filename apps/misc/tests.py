@@ -12,6 +12,8 @@ class MiscTestCase(AuthTestCase):
 
     def setUp(self):
         super().setUp()
+
+        # URLs
         self.refresh_token_url = reverse_lazy('refresh-token')
         self.retrieve_all_tips = reverse_lazy('retrieve-all-tips')
         self.retrieve_single_tip = reverse_lazy('retrieve-tip')
@@ -25,9 +27,11 @@ class MiscTestCase(AuthTestCase):
 
     def test_retrieve_single_tip(self):
         self._authenticate_with_tokens()
+
         # Create a new tip object
         tip = Tip.objects.create(title='New tip', description='This is a new tip', author="John Doe")
         new_tip_id = tip.id
+
         # Use reverse when you are passing arguments
         retrieve_single_tip_url = reverse('retrieve-tip', kwargs={'tip_id': new_tip_id})
         response = self.client.get(retrieve_single_tip_url, format='json')

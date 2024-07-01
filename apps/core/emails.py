@@ -1,31 +1,35 @@
 import pyotp
-from django.http import Http404
+from django.contrib.auth import get_user_model
 from django.template.loader import render_to_string
-from django.utils import timezone
-from rest_framework.generics import get_object_or_404
 
-from apps.core.models import OTPSecret
 from utilities.emails import send_email
 
+User = get_user_model()
 
-def send_otp_email(user, template=None):
-    # Generate or retrieve the OTP secret for the user
-    try:
-        otp_secret = get_object_or_404(OTPSecret, user=user)
-        otp_secret.created = timezone.now()
-        otp_secret.save()
-    except Http404:
-        otp_secret = OTPSecret.objects.create(user=user, secret=pyotp.random_base32())
 
+def decode_otp_from_secret(otp_secret: str) -> str:
     # Generate the OTP using the secret
-    totp = pyotp.TOTP(otp_secret.secret, interval=600)
-    otp = totp.now()
+    # Otp lasts for 5 minutes
+    totp = pyotp.TOTP(s=otp_secret, interval=300, digits=4)  # Limit the generated otp to 4 digits
 
-    # Compose the email subject and content
+    otp = totp.now()
+    return otp
+
+
+def send_otp_email(otp_secret: str, recipient: str or User, template=None) -> None:
+    # Generate the OTP using the secret
+    otp = decode_otp_from_secret(otp_secret=otp_secret)
+
+    # Determine email address based on the type of recipient
+    if isinstance(recipient, User):
+        email_address = recipient.email
+    else:
+        email_address = recipient
+
     subject = 'One-Time Password (OTP) Verification'
-    recipient = [user.email]
-    context = {'email': user.email, 'otp': otp}
+    recipients = [email_address]
+    context = {'email': email_address, 'otp': otp}
     message = render_to_string(template, context)
 
     # Send the email
-    send_email(subject, recipient, message=message, template=template, context=context)
+    send_email(subject, recipients, message=message, template=template, context=context)

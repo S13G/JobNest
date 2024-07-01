@@ -1,5 +1,6 @@
 import pycountry
 from django.contrib.auth import get_user_model
+from django.core import validators
 from django.core.validators import validate_email
 from rest_framework import serializers as sr
 
@@ -24,12 +25,15 @@ def validate_email_address(value: str) -> str:
 
 class RegisterSerializer(sr.Serializer):
     email = sr.CharField()
-    password = sr.CharField(write_only=True)
+    password = sr.CharField(max_length=20, write_only=True, min_length=8, validators=[validators.RegexValidator(
+        regex=r'[!@#$%^&*(),.?":{}|<>]',
+        message="Password must contain at least one special character."
+    )], default="Validpass#1234")
 
 
 class VerifyEmailSerializer(sr.Serializer):
     email = sr.CharField(validators=[validate_email_address])
-    otp = sr.IntegerField()
+    otp = sr.CharField()
 
 
 class ResendEmailVerificationCodeSerializer(sr.Serializer):
@@ -42,7 +46,7 @@ class SendNewEmailVerificationCodeSerializer(sr.Serializer):
 
 class ChangeEmailSerializer(sr.Serializer):
     email = sr.CharField(validators=[validate_email_address])
-    otp = sr.IntegerField()
+    otp = sr.CharField()
 
 
 class EmployeeProfileSerializer(sr.Serializer):
@@ -88,7 +92,7 @@ class CompanyProfileSerializer(sr.Serializer):
     user_id = sr.UUIDField(read_only=True)
     id = sr.UUIDField(read_only=True)
     name = sr.CharField()
-    country = sr.ChoiceField(choices=[(country.alpha_2, country.name) for country in pycountry.countries])
+    country = sr.ChoiceField(choices=[(country.alpha_2, country.name) for country in pycountry.countries], default='US')
     email = sr.EmailField(source="user.email", read_only=True)
     avatar = sr.ImageField(source="user.avatar")
     address = sr.CharField()
@@ -129,7 +133,10 @@ class LoginSerializer(sr.Serializer):
 
 
 class ChangePasswordSerializer(sr.Serializer):
-    password = sr.CharField(max_length=50, min_length=6, write_only=True)
+    password = sr.CharField(max_length=20, min_length=8, write_only=True, validators=[validators.RegexValidator(
+        regex=r'[!@#$%^&*(),.?":{}|<>]',
+        message="Password must contain at least one special character."
+    )], default="Validpass#1234")
 
 
 class RequestNewPasswordCodeSerializer(sr.Serializer):

@@ -3,8 +3,6 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse_lazy
 from rest_framework.test import APITestCase
 
-from apps.core.models import OTPSecret
-
 
 class AuthTestCase(APITestCase):
 
@@ -52,7 +50,7 @@ class AuthTestCase(APITestCase):
         employee = self._employee_registration_success()
 
         # Test successful email verification
-        otp_secret = OTPSecret.objects.get(user=employee)
+        otp_secret = pyotp.random_base32()
 
         # Generate the OTP using the secret
         totp = pyotp.TOTP(otp_secret.secret, interval=600)
@@ -72,7 +70,7 @@ class AuthTestCase(APITestCase):
         company = self._company_registration_success()
 
         # Test successful email verification
-        otp_secret = OTPSecret.objects.get(user=company)
+        otp_secret = pyotp.random_base32()
 
         # Generate the OTP using the secret
         totp = pyotp.TOTP(otp_secret.secret, interval=600)

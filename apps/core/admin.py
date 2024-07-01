@@ -23,7 +23,6 @@ class UserAdmin(BaseUserAdmin):
         "company",
         "email_verified",
         "is_staff",
-        "is_active",
 
     )
     list_display_links = (
@@ -36,7 +35,6 @@ class UserAdmin(BaseUserAdmin):
         "email",
         "company",
         "is_staff",
-        "is_active",
     )
     list_per_page = 20
     fieldsets = (

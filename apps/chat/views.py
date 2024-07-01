@@ -151,7 +151,7 @@ class RetrieveChatView(APIView):
         }
     )
     def get(self, request, *args, **kwargs):
-        friend_id = self.kwargs.get("friend_id")
+        friend_id = kwargs.get("friend_id")
 
         try:
             friend = User.objects.get(id=friend_id)
@@ -159,7 +159,7 @@ class RetrieveChatView(APIView):
             return RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Friend does not exist",
                                 status_code=status.HTTP_400_BAD_REQUEST)
 
-        user = self.request.user
+        user = request.user
 
         messages = (
             Message.objects.filter(Q(sender=user) | Q(receiver=user), Q(sender=friend) | Q(receiver=friend))
@@ -242,7 +242,7 @@ class ArchiveChatView(APIView):
         }
     )
     def get(self, request, *args, **kwargs):
-        friend_id = self.kwargs.get("friend_id")
+        friend_id = kwargs.get("friend_id")
 
         try:
             Message.objects.filter(
@@ -293,7 +293,7 @@ class RemoveArchivedChatView(APIView):
         }
     )
     def get(self, request, *args, **kwargs):
-        friend_id = self.kwargs.get("friend_id")
+        friend_id = kwargs.get("friend_id")
 
         try:
             Message.objects.filter(sender=request.user, receiver_id=friend_id).update(is_archived=False)

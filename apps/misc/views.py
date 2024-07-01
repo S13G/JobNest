@@ -81,7 +81,7 @@ class RetrieveTipView(APIView):
         }
     )
     def get(self, request, *args, **kwargs):
-        tip_id = self.kwargs.get('tip_id')
+        tip_id = kwargs.get('tip_id')
 
         try:
             tip = Tip.objects.get(id=tip_id)
