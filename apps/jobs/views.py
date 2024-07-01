@@ -1,113 +1,49 @@
-import pycountry
 from django.db import transaction
-from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter, OpenApiExample
-from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from apps.common.errors import ErrorCode
-from apps.common.exceptions import RequestError
 from apps.common.permissions import IsAuthenticatedEmployee, IsAuthenticatedCompany
 from apps.common.responses import CustomResponse
-from apps.jobs.choices import STATUS_PENDING, STATUS_ACCEPTED, STATUS_REJECTED, STATUS_SCHEDULED_FOR_INTERVIEW
+from apps.jobs.choices import STATUS_REJECTED, STATUS_SCHEDULED_FOR_INTERVIEW
+from apps.jobs.docs import *
 from apps.jobs.filters import JobFilter, AppliedJobFilter, VacanciesFilter
-from apps.jobs.models import Job, JobType, AppliedJob, SavedJob, JobRequirement
+from apps.jobs.models import SavedJob, JobRequirement
+from apps.jobs.selectors import *
 from apps.jobs.serializers import CreateJobSerializer, UpdateVacanciesSerializer, UpdateAppliedJobSerializer, \
     JobApplySerializer
 from apps.misc.models import Tip
-from apps.notification.choices import NOTIFICATION_JOB_APPLIED, NOTIFICATION_APPLICATION_ACCEPTED, \
+from apps.notification.choices import NOTIFICATION_APPLICATION_ACCEPTED, \
     NOTIFICATION_APPLICATION_REJECTED, NOTIFICATION_APPLICATION_SCHEDULED_FOR_INTERVIEW
 from apps.notification.models import Notification
 
 
 # # Create your views here.
 
+class ListCountriesView(APIView):
+
+    @country_docs()
+    def get(self, request):
+        countries = [
+            {
+                'name': country.name,
+                'alpha_2': country.alpha_2,
+            }
+            for country in pycountry.countries
+        ]
+        return CustomResponse.success(message="Retrieved successfully", data=countries)
+
+
 class SearchJobsView(APIView):
     permission_classes = (IsAuthenticatedEmployee,)
 
-    @extend_schema(
-        summary="Search jobs",
-        parameters=[
-            OpenApiParameter(name="search", type=OpenApiTypes.STR, required=False)
-        ],
-        description=(
-                """
-                This endpoint allows an authenticated job seeker to search for jobs
-                """
-        ),
-        tags=['Job Seeker Home'],
-        responses={
-            status.HTTP_200_OK: OpenApiResponse(
-                response={"application/json"},
-                description="Successfully retrieved searched jobs",
-                examples=[
-                    OpenApiExample(
-                        name="Success Response",
-                        value={
-                            "status": "success",
-                            "message": "Successfully retrieved searched jobs",
-                            "data": [
-                                {
-                                    "id": "<uuid>",
-                                    "title": "<string>",
-                                    "recruiter": "<string>",
-                                    "job_image": "<string:image_url>",
-                                    "location": "<string>",
-                                    "type": "<string>",
-                                    "salary": "<decimal or float>",
-                                    "is_saved": "<bool>",
-                                }
-                            ]
-                        }
-                    )
-                ]
-            ),
-            status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                response={"status": "failure", "message": "No jobs found", "code": "non_existent"},
-                description="No jobs found",
-                examples=[
-                    OpenApiExample(
-                        name="Not found",
-                        value={
-                            "status": "failure",
-                            "message": "No jobs found",
-                            "code": "non_existent"
-                        }
-                    )
-                ]
-            ),
-        }
-    )
+    @search_jobs_docs()
     def get(self, request, *args, **kwargs):
         search = request.query_params.get('search', '')
+        current_user = request.user
 
-        try:
-            jobs = Job.objects.filter(
-                Q(title__icontains=search) |
-                Q(location__icontains=search) | Q(type__name__icontains=search) |
-                Q(recruiter__company_profile__name__icontains=search), active=True).order_by('-created')
-
-            data = [
-                {
-                    "id": single_job.id,
-                    "title": single_job.title,
-                    "recruiter": single_job.recruiter.company_profile.name,
-                    "job_image": single_job.image_url,
-                    "location": single_job.location,
-                    "type": single_job.type.name,
-                    "salary": single_job.salary,
-                    "is_saved": single_job.is_saved_by_user(request.user),
-                }
-                for single_job in jobs
-            ]
-            return CustomResponse.success(message="Successfully retrieved searched jobs", data=data)
-
-        except Job.DoesNotExist:
-            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="No jobs found",
-                               status_code=status.HTTP_404_NOT_FOUND)
+        data = get_searched_jobs(query=search, user=current_user)
+        return CustomResponse.success(message="Successfully retrieved searched jobs", data=data)
 
 
 class JobsHomeView(APIView):
@@ -115,279 +51,51 @@ class JobsHomeView(APIView):
     filter_backends = [DjangoFilterBackend]
     filterset_class = JobFilter
 
-    @extend_schema(
-        summary="Job seeker home page",
-        description=(
-                """
-                Get home page: Search, Retrieve all job types, and all jobs and also tip including notifications.
-                """
-        ),
-        parameters=[
-            OpenApiParameter('type', type=OpenApiTypes.STR, required=False, description="Filter jobs by type"),
-            OpenApiParameter('location', type=OpenApiTypes.STR, required=False, description="Filter jobs by location"),
-            OpenApiParameter('salary_min', type=OpenApiTypes.FLOAT, required=False,
-                             description="Filter jobs by salary"),
-            OpenApiParameter('salary_max', type=OpenApiTypes.FLOAT, required=False,
-                             description="Filter jobs by salary"),
-        ],
-        tags=["Job Seeker Home"],
-        responses={
-            status.HTTP_200_OK: OpenApiResponse(
-                response={"application/json"},
-                description="Retrieved successfully",
-                examples=[
-                    OpenApiExample(
-                        name="Success Response",
-                        value={
-                            "profile_name": "<string>",
-                            "tip": {
-                                "id": "<uuid>",
-                                "title": "<string>",
-                                "author_image": "<string:image_url>",
-                            },
-                            "job_types": [
-                                {
-                                    "id": "<uuid>",
-                                    "name": "<string>"
-                                },
-                            ],
-                            "jobs": [
-                                {
-                                    "id": "<uuid>",
-                                    "title": "<string>",
-                                    "recruiter": "<string>",
-                                    "job_image": "<string:image_url>",
-                                    "location": "<string>",
-                                    "type": "<string>",
-                                    "salary": "<decimal or float>",
-                                    "is_saved": "<bool>",
-                                },
-                            ]
-                        }
-                    )
-                ]
-            )
-        }
-    )
+    @job_home_docs()
     def get(self, request):
-        profile_name = request.user.employee_profile.full_name
+        current_user = request.user
+        profile_name = current_user.employee_profile.full_name
+
         tip = Tip.objects.only('title').order_by('-created').first()
         job_types = JobType.objects.only('name')
-        queryset = Job.objects.filter(active=True).order_by('-created')
+
+        queryset = Job.objects.get_active_jobs()
         queryset = self.filterset_class(data=request.GET, queryset=queryset).qs
-        data = {
-            "profile_name": profile_name,
-            "tip": {
-                "id": tip.id,
-                "title": tip.title,
-                "author_image": tip.author_image_url
-            } if tip else {},
-            "job_types": [
-                {
-                    "id": job_type.id,
-                    "name": job_type.name
-                }
-                for job_type in job_types
-            ],
-            "jobs": [
-                {
-                    "id": job.id,
-                    "title": job.title,
-                    "recruiter": job.recruiter.company_profile.name,
-                    "job_image": job.image_url,
-                    "location": job.location,
-                    "type": job.type.name,
-                    "salary": job.salary,
-                    "is_saved": job.is_saved_by_user(request.user)
-                }
-                for job in queryset
-            ]
-        }
+
+        data = job_home_data(queryset=queryset, profile_name=profile_name, tip=tip, job_types=job_types,
+                             user=current_user)
         return CustomResponse.success(message="Retrieved successfully", data=data)
 
 
 class JobDetailsView(APIView):
     permission_classes = (IsAuthenticated,)
 
-    @extend_schema(
-        summary="Retrieve single job",
-        description=(
-                """
-                This endpoint allows an authenticated job seeker or recruiter to retrieve a single job using the id passed in the path parameter.
-                """
-        ),
-        tags=["Job (Seeker)"],
-        responses={
-            status.HTTP_200_OK: OpenApiResponse(
-                response={"application/json"},
-                description="Successfully retrieved job details",
-                examples=[
-                    OpenApiExample(
-                        name="Success Response",
-                        value={
-                            "id": "<uuid>",
-                            "title": "<string>",
-                            "recruiter": "<string>",
-                            "job_image": "<string:image_url>",
-                            "location": "<string>",
-                            "type": "<string>",
-                            "salary": "<decimal or float>",
-                            "is_saved": "<bool>",
-                            "requirements": [
-                                {
-                                    "id": "<uuid>",
-                                    "requirement": "<string>"
-                                },
-                            ],
-                            "url": "<string>"
-                        }
-                    )
-                ]
-            ),
-            status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                response={"status": "failure", "message": "Job with this id does not exist", "code": "non_existent"},
-                description="Job with this id does not exist",
-                examples=[
-                    OpenApiExample(
-                        name="Error Response",
-                        value={
-                            "status": "failure",
-                            "message": "Job with this id does not exist",
-                            "code": "non_existent",
-                        }
-                    )
-                ]
-            )
-        }
-    )
+    @job_details_docs()
     def get(self, request, *args, **kwargs):
         job_id = kwargs.get('id')
 
-        try:
-            job = Job.objects.get(id=job_id)
-            data = {
-                "id": job.id,
-                "title": job.title,
-                "recruiter": job.recruiter.company_profile.name,
-                "job_image": job.image_url,
-                "location": pycountry.countries.get(alpha_2=job.location).name,
-                "type": job.type.name,
-                "salary": job.salary,
-                "is_saved": job.is_saved_by_user(request.user),
-                "requirements": [
-                    {
-                        "id": requirement.id,
-                        "requirement": requirement.requirement
-                    }
-                    for requirement in job.requirements.all()
-                ],
-                "url": job.get_absolute_url()
-            }
-            return CustomResponse.success(message="Successfully retrieved job details", data=data)
-        except Job.DoesNotExist:
-            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Job with this id does not exist",
-                               status_code=status.HTTP_404_NOT_FOUND)
+        job = get_job_by_id(job_id=job_id)
+
+        data = job_details_data(job=job, user=request.user, request=request)
+        return CustomResponse.success(message="Successfully retrieved job details", data=data)
 
 
 class JobApplyView(APIView):
     permission_classes = (IsAuthenticatedEmployee,)
     serializer_class = JobApplySerializer
 
-    @extend_schema(
-        summary="Apply for a job",
-        description=(
-                """
-                This endpoint allows a authenticated job seeker to apply for a job by passing the id of the job in the path parameter,
-                and also pass in the required fields in the request body. ``CV: File``: Only accepts ``.pdf``, ``.doc`` and ``.docx`` files
-                """
-        ),
-        request=JobApplySerializer,
-        tags=["Job (Seeker)"],
-        responses={
-            status.HTTP_200_OK: OpenApiResponse(
-                response={"status": "success", "message": "Successfully applied for job"},
-                description="Successfully applied for job",
-                examples=[
-                    OpenApiExample(
-                        name="Success Response",
-                        value={
-                            "status": "success",
-                            "message": "Successfully applied for job",
-                        }
-                    )
-                ]
-            ),
-            status.HTTP_404_NOT_FOUND: OpenApiResponse(
-                response={"status": "failure", "message": "Job with this id does not exist", "code": "non_existent"},
-                description="Job with this id does not exist",
-                examples=[
-                    OpenApiExample(
-                        name="Error Response",
-                        value={
-                            "status": "failure",
-                            "message": "Job with this id does not exist",
-                            "code": "non_existent",
-                        }
-                    )
-                ]
-            ),
-            status.HTTP_409_CONFLICT: OpenApiResponse(
-                response={"status": "failure", "message": "Already applied for this job", "code": "already_exists"},
-                description="Already applied for this job",
-                examples=[
-                    OpenApiExample(
-                        name="Pending Applied Error Response",
-                        value={
-                            "status": "failure",
-                            "message": "You have already applied to this job and your application is still pending.",
-                            "code": "already_exists",
-                        }
-                    ),
-                    OpenApiExample(
-                        name="Accepted Error Response",
-                        value={
-                            "status": "failure",
-                            "message": "You have already applied to this job and your application has been accepted.",
-                            "code": "already_exists",
-                        }
-                    )
-                ]
-            )
-        }
-    )
+    @job_apply_docs()
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         job_id = kwargs.get('id')
+
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
 
-        job = Job.objects.get(id=job_id)  # Try to get the job
+        job = get_job_by_id(job_id=job_id)
 
-        if job is None:
-            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Job with this id does not exist", data={},
-                               status_code=status.HTTP_404_NOT_FOUND)
-
-        # Check if the user has already applied to the job and their application is still pending
-        existing_pending_application = AppliedJob.objects.filter(job=job, user=request.user,
-                                                                 status=STATUS_PENDING).exists()
-        if existing_pending_application:
-            raise RequestError(err_code=ErrorCode.ALREADY_EXISTS,
-                               err_msg="You have already applied to this job and your application is still pending.",
-                               data={}, status_code=status.HTTP_409_CONFLICT)
-
-        # Check if the user has already applied to the job and their application has been accepted
-        existing_accepted_application = AppliedJob.objects.filter(job=job, user=request.user,
-                                                                  status=STATUS_ACCEPTED).exists()
-        if existing_accepted_application:
-            raise RequestError(err_code=ErrorCode.ALREADY_EXISTS,
-                               err_msg="You have already applied to this job and your application has been accepted.",
-                               data={}, status_code=status.HTTP_409_CONFLICT)
-
-        AppliedJob.objects.create(job=job, cv=serializer.validated_data.get("cv"),
-                                  user=request.user)  # create the applied job
-
-        Notification.objects.create(user=request.user, notification_type=NOTIFICATION_JOB_APPLIED,
-                                    message="You have applied for a job")
+        apply_to_job(job=job, user=request.user, data=data)
 
         return CustomResponse.success(message="Successfully applied for job", data=None)
 
@@ -864,7 +572,7 @@ class SearchVacanciesView(APIView):
                 "title": single_job.title,
                 "recruiter": single_job.recruiter.company_profile.name,
                 "job_image": single_job.image_url,
-                "location": single_job.location,
+                "location": pycountry.countries.get(alpha_2=single_job.location).name,
                 "type": single_job.type.name,
                 "salary": single_job.salary,
                 "active": single_job.active,
@@ -943,7 +651,7 @@ class VacanciesHomeView(APIView):
                     "title": job.title,
                     "recruiter": job.recruiter.company_profile.name,
                     "job_image": job.image_url,
-                    "location": job.location,
+                    "location": pycountry.countries.get(alpha_2=job.location).name,
                     "type": job.type.name,
                     "salary": job.salary,
                     "active": job.active

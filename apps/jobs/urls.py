@@ -3,6 +3,7 @@ from django.urls import path
 from apps.jobs.views import *
 
 urlpatterns = [
+    path('countries', ListCountriesView.as_view(), name="list-countries"),
     path('', JobsHomeView.as_view(), name="jobs-home"),
     path('search-jobs', SearchJobsView.as_view(), name="search-jobs"),
     path('job/<str:id>', JobDetailsView.as_view(), name="job-details"),

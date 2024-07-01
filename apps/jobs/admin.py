@@ -40,6 +40,7 @@ class JobAdmin(admin.ModelAdmin):
                 'fields': [
                     'recruiter',
                     'title',
+                    'image',
                     'salary',
                     'type',
                     'location',

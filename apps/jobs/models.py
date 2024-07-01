@@ -30,7 +30,6 @@ class Job(BaseModel):
         max_length=255, null=True, choices=[(country.alpha_2, country.name) for country in pycountry.countries],
     )
     active = models.BooleanField(default=True)
-    is_saved = models.BooleanField(default=False)
 
     objects = JobManager()
 
