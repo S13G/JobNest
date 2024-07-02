@@ -16,13 +16,18 @@ class CreateJobSerializer(serializers.Serializer):
     requirements = serializers.ListField(child=serializers.CharField())
 
 
+class JobRequirementSerializer(serializers.Serializer):
+    id = serializers.CharField(required=False, allow_blank=True)
+    requirement = serializers.CharField()
+
+
 class UpdateVacanciesSerializer(serializers.Serializer):
     image = serializers.ImageField()
     title = serializers.CharField()
     salary = serializers.DecimalField(max_digits=10, decimal_places=2)
-    location = serializers.ChoiceField(choices=[(country.alpha_2, country.name) for country in pycountry.countries])
+    location = serializers.ChoiceField(choices=[(country.alpha_2, country.name) for country in pycountry.countries], )
     type = serializers.PrimaryKeyRelatedField(queryset=JobType.objects.all())
-    requirements = serializers.ListField(child=serializers.CharField())
+    requirements = serializers.ListField(child=JobRequirementSerializer())
     active = serializers.BooleanField()
 
 

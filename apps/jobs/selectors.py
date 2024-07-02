@@ -9,9 +9,10 @@ from rest_framework import status
 from apps.common.errors import ErrorCode
 from apps.common.exceptions import RequestError
 from apps.jobs.choices import STATUS_PENDING, STATUS_ACCEPTED, STATUS_REJECTED, STATUS_SCHEDULED_FOR_INTERVIEW
-from apps.jobs.models import Job, JobType, AppliedJob, SavedJob
+from apps.jobs.models import Job, JobType, AppliedJob, SavedJob, JobRequirement
 from apps.misc.models import Tip
-from apps.notification.choices import NOTIFICATION_JOB_APPLIED
+from apps.notification.choices import NOTIFICATION_JOB_APPLIED, NOTIFICATION_APPLICATION_ACCEPTED, \
+    NOTIFICATION_APPLICATION_REJECTED, NOTIFICATION_APPLICATION_SCHEDULED_FOR_INTERVIEW
 from apps.notification.models import Notification
 
 User = get_user_model()
@@ -278,6 +279,166 @@ def get_saved_jobs_data(saved_jobs: QuerySet, current_user: User) -> dict:
             }
             for saved_job in saved_jobs
         ]
+    }
+
+    return data
+
+
+def get_search_vacancies(search: str) -> List[dict]:
+    jobs = Job.objects.filter(
+        Q(title__icontains=search) |
+        Q(location__icontains=search) | Q(type__name__icontains=search) |
+        Q(recruiter__company_profile__name__icontains=search)).order_by('-created')
+
+    data = [
+        {
+            "id": single_job.id,
+            "title": single_job.title,
+            "recruiter": {
+                "id": single_job.recruiter.company_profile.id,
+                "full_name": single_job.recruiter.company_profile.name
+            },
+            "job_image": single_job.image_url,
+            "location": pycountry.countries.get(alpha_2=single_job.location).name,
+            "type": single_job.type.name,
+            "salary": single_job.salary,
+            "active": single_job.active,
+        }
+        for single_job in jobs
+    ]
+
+    return data
+
+
+def vacancies_home_data(queryset: QuerySet, profile_name: str, applied_jobs: QuerySet) -> dict:
+    data = {
+        "profile_name": profile_name,
+        "vacancies": [
+            {
+                "id": job.id,
+                "title": job.title,
+                "recruiter": job.recruiter.company_profile.name,
+                "job_image": job.image_url,
+                "location": pycountry.countries.get(alpha_2=job.location).name,
+                "type": job.type.name,
+                "salary": job.salary,
+                "active": job.active
+            }
+            for job in queryset
+        ],
+        "all_applied_applicants": [
+            {
+                "id": applied_job.id,
+                "full_name": applied_job.user.employee_profile.full_name,
+                "job_title": applied_job.job.title,
+                "cv": applied_job.cv.url
+            }
+            for applied_job in applied_jobs
+        ]
+    }
+
+    return data
+
+
+def create_vacancy_application(current_user: User, data: dict, requirements_data: list) -> dict:
+    try:
+        created_job = Job.objects.create(recruiter=current_user, **data)
+
+        # Create JobRequirements objects for each requirement
+        job_requirements = [
+            JobRequirement(job=created_job, requirement=requirement)
+            for requirement in requirements_data
+        ]
+        JobRequirement.objects.bulk_create(job_requirements)
+    except Exception as e:
+        raise RequestError(err_code=ErrorCode.OTHER_ERROR, err_msg=f"An error occurred while trying to create a job: {e}",
+                           status_code=status.HTTP_400_BAD_REQUEST)
+
+    data = {
+        "id": created_job.id,
+        "title": created_job.title,
+        "job_image": created_job.image_url,
+        "recruiter": {
+            "id": created_job.recruiter.company_profile.id,
+            "name": created_job.recruiter.company_profile.name
+        },
+    }
+
+    return data
+
+
+def update_vacancy_data(serialized_data: dict, requirements_data: list, job_instance: Job) -> dict:
+    for key, value in serialized_data.items():
+        setattr(job_instance, key, value)
+    job_instance.save()
+
+    if requirements_data is not None:
+        for requirement in requirements_data:
+
+            # Try to get the existing requirement
+            requirement_id = requirement.get("id")
+            requirement_text = requirement.get("requirement")
+
+            # Gets the requirement and updates it if the correct id is provided
+            if requirement_id:
+                try:
+                    existing_requirement = JobRequirement.objects.get(id=requirement_id, job=job_instance)
+                    existing_requirement.requirement = requirement_text
+                    existing_requirement.save()
+                except JobRequirement.DoesNotExist:
+                    raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="One of the requirements doesn't exist",
+                                       status_code=status.HTTP_404_NOT_FOUND)
+            else:
+                # Create a new requirement if id is not provided
+                JobRequirement.objects.create(job=job_instance, requirement=requirement_text)
+
+    data = {
+        "id": job_instance.id,
+        "title": job_instance.title,
+        "job_image": job_instance.image_url,
+        "recruiter": {
+            "id": job_instance.recruiter.company_profile.id,
+            "name": job_instance.recruiter.company_profile.name
+        },
+    }
+
+    return data
+
+
+def update_applied_job_data(serialized_data: dict, applied_job: AppliedJob) -> dict:
+    for key, value in serialized_data.items():
+        setattr(applied_job, key, value)
+    applied_job.save()
+
+    if applied_job.status == STATUS_ACCEPTED:
+        Notification.objects.create(
+            user=applied_job.user,
+            notification_type=NOTIFICATION_APPLICATION_ACCEPTED,
+            message=f"Your application for {applied_job.job.title} at {applied_job.job.recruiter.company_profile.name} has been accepted!",
+        )
+    elif applied_job.status == STATUS_REJECTED:
+        Notification.objects.create(
+            user=applied_job.user,
+            notification_type=NOTIFICATION_APPLICATION_REJECTED,
+            message=f"Your application for {applied_job.job.title} at {applied_job.job.recruiter.company_profile.name} has been rejected!",
+        )
+        applied_job.delete()
+    elif applied_job.status == STATUS_SCHEDULED_FOR_INTERVIEW:
+        Notification.objects.create(
+            user=applied_job.user,
+            notification_type=NOTIFICATION_APPLICATION_SCHEDULED_FOR_INTERVIEW,
+            message=f"Your application for {applied_job.job.title} at {applied_job.job.recruiter.company_profile.name} has been scheduled for an interview!",
+        )
+
+    data = {
+        "id": applied_job.id,
+        "job": applied_job.job.title,
+        "applicant": applied_job.user.employee_profile.full_name,
+        "applicant_image": applied_job.user.profile_image_url,
+        "cv": applied_job.cv.url,
+        "status": applied_job.status,
+        "review": applied_job.review or "",
+        "interview_date": applied_job.interview_date or ""
     }
 
     return data

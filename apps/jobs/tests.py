@@ -26,7 +26,7 @@ class JobsTestCase(AuthTestCase):
             'password': 'testpassword',
         }
 
-        self.new_recruiter = User.objects.create_user(**self.new_recruiter_data, company=True, is_active=True,
+        self.new_recruiter = User.objects.create_user(**self.new_recruiter_data, company=True, 
                                                       email_verified=True)
 
         # Creating a company profile for the new recruiter
@@ -258,7 +258,7 @@ class JobsTestCase(AuthTestCase):
         file_name = 'test.pdf'
         test_file = SimpleUploadedFile(file_name, file_content)
 
-        created_applicant = self.user.objects.create_user(**self.employee_data, is_active=True, email_verified=True)
+        created_applicant = self.user.objects.create_user(**self.employee_data,  email_verified=True)
 
         # Create employee profile for applicant
         data = {
