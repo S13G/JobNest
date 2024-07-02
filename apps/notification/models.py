@@ -20,12 +20,13 @@ class Notification(BaseModel):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        channel_layer = get_channel_layer()
+
+        channel_layer = get_channel_layer()  # Get the channel layer
         async_to_sync(channel_layer.group_send)(
-            str(self.user.id),
+            f"notification_{self.user.id}",  # Group name based on user ID
             {
-                "type": "notification_message",
-                "notification": {
+                "type": "notification_message",  # This type must match the method in your consumer
+                "notification": {  # Payload of the message
                     'message': self.message
                 }
             }

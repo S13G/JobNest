@@ -91,7 +91,7 @@ class BaseGoogleSocialAuthSerializer(serializers.Serializer):
 
         """
         # Determine the profile type based on whether the user has a company profile or an employee profile
-        profile_type = "company_profile" if user.company_profile else "employee_profile"
+        profile_type = "company_profile" if hasattr(user, "company_profile") else "employee_profile"
 
         # Check if the user already has a profile of the same type
         try:

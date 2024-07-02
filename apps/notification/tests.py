@@ -6,7 +6,6 @@ from apps.common.tests import AuthTestCase
 User = get_user_model()
 
 
-# Create your websocket_test here.
 class NotificationTestCase(AuthTestCase):
 
     def setUp(self):
