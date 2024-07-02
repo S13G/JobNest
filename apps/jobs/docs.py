@@ -3,6 +3,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, OpenApiExample, OpenApiParameter, extend_schema
 from rest_framework import status
 
+from apps.jobs.choices import STATUS_CHOICES
 from apps.jobs.models import JobType
 
 
@@ -273,7 +274,17 @@ def job_apply_docs():
             """
         ),
         tags=["Job (Seeker)"],
-        request=OpenApiTypes.BINARY,
+        request={
+            'multipart/form-data': {
+                'type': 'object',
+                'properties': {
+                    'cv': {
+                        'type': 'string',
+                        'format': 'binary'
+                    }
+                }
+            }
+        },
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 response={"application/json"},
@@ -324,5 +335,320 @@ def job_apply_docs():
                     )
                 ]
             )
+        }
+    )
+
+
+def applied_jobs_search_docs():
+    return extend_schema(
+        summary="Search applied jobs",
+        parameters=[
+            OpenApiParameter(name="search", type=OpenApiTypes.STR, required=False)
+        ],
+        description=(
+            """
+            This endpoint allows an authenticated job seeker to search for their applied jobs
+            """
+        ),
+        tags=['Job (Seeker)'],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                response={"application/json"},
+                description="Successfully retrieved searched applied jobs",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully retrieved searched applied jobs",
+                            "data": [
+                                {
+                                    "id": "c57ad787-f80f-4e4f-9062-230637dee27a",
+                                    "title": "Software Developer",
+                                    "recruiter": {
+                                        "id": "56a2d1f1-b25b-415b-85f1-ec1483f4c92c",
+                                        "name": "Apple"
+                                    },
+                                    "job_image": "/media/static/jobs/Screenshot_from_2024-07-01_06-53-03.png",
+                                    "status": "SCHEDULED FOR INTERVIEW"
+                                },
+                                {
+                                    "id": "974dfd3c-00ab-4dde-8105-1f50bed62ffd",
+                                    "title": "Backend Engineer",
+                                    "recruiter": {
+                                        "id": "4889ff71-9f07-4674-9b0b-13f29924f3c4",
+                                        "name": "Amazon"
+                                    },
+                                    "job_image": "/media/static/jobs/Screenshot_from_2024-07-01_10-55-13.png",
+                                    "status": "PENDING"
+                                }
+                            ]
+                        }
+                    )
+                ]
+            ),
+        }
+    )
+
+
+def applied_job_details_docs():
+    return extend_schema(
+        summary="Get applied job details",
+        description=(
+            """
+            This endpoint allows an authenticated job seeker to retrieve the details of the applied job, 
+            you can pass in the `id` of the applied job to the path parameter.
+            """
+        ),
+        tags=["Job  (Seeker)"],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                response={"application/json"},
+                description="Successfully retrieved applied job details",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully retrieved applied job details",
+                            "data": {
+                                "id": "974dfd3c-00ab-4dde-8105-1f50bed62ffd",
+                                "title": "Backend Engineer",
+                                "recruiter": {
+                                    "id": "eced692c-b5fe-4ebb-b4ca-7faacc0bbc7a",
+                                    "name": "Amazon"
+                                },
+                                "job_image": "/media/static/jobs/Screenshot_from_2024-07-01_10-55-13.png",
+                                "location": "Burundi",
+                                "type": "Software",
+                                "salary": 500000,
+                                "status": "SCHEDULED FOR INTERVIEW",
+                                "review": "I would like to have a meeting with you so we can discuss about your qualifications",
+                                "interview_date": "2024-07-03T07:18:38.275000Z"
+                            }
+                        }
+                    )
+                ]
+            ),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"application/json"},
+                description="Applied job with this id does not exist",
+                examples=[
+                    OpenApiExample(
+                        name="Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "Applied job with this id does not exist",
+                            "code": "non_existent",
+                        }
+                    )
+                ]
+            ),
+        }
+    )
+
+
+def filter_applied_jobs_docs():
+    return extend_schema(
+        summary="Get all applications and filter",
+        description=(
+            """
+            This endpoint gets all applications the authenticated job seeker has applied to with some filters option
+            
+            ```AVAILABLE FILTERS: PENDING, ACCEPTED, REJECTED, SCHEDULED FOR INTERVIEW```
+            """
+        ),
+        parameters=[
+            OpenApiParameter('status', type=OpenApiTypes.STR, required=False, description="Filter jobs by type",
+                             enum=[choice[0] for choice in STATUS_CHOICES]),
+        ],
+        tags=["Job  (Seeker)"],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                response={"application/json"},
+                description="Retrieved successfully",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Retrieved successfully",
+                            "data": [
+                                {
+                                    "id": "c57ad787-f80f-4e4f-9062-230637dee27a",
+                                    "title": "Software Developer",
+                                    "recruiter": {
+                                        "id": "eced692c-b5fe-4ebb-b4ca-7faacc0bbc7a",
+                                        "name": "Amazon"
+                                    },
+                                    "job_image": "/media/static/jobs/Screenshot_from_2024-07-01_06-53-03.png",
+                                    "status": "PENDING",
+                                    "salary": 20000,
+                                    "location": "Åland Islands",
+                                    "type": "Software",
+                                    "review": "",
+                                    "interview_date": ""
+                                }
+                            ]
+                        }
+                    )
+                ]
+            )
+        }
+    )
+
+
+def create_saved_jobs_docs():
+    return extend_schema(
+        summary="Create saved job",
+        description=(
+            """
+            This endpoint allows a job seeker to save a job, pass in the `id` of the job to the path parameter.
+            """
+        ),
+        tags=["Job (Seeker)"],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                response={"application/json"},
+                description="Successfully saved job",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully saved job",
+                            "data": {
+                                "id": "3cd47f86-539f-4253-b2f3-974b45c7590a",
+                                "job_id": "ee33b210-93c0-46c6-abea-58841db8dec9",
+                                "title": "Backend Engineer",
+                                "recruiter": {
+                                    "id": "eced692c-b5fe-4ebb-b4ca-7faacc0bbc7a",
+                                    "name": "Amazon"
+                                },
+                                "job_image": "/media/static/jobs/Screenshot_from_2024-07-01_10-55-13.png",
+                                "location": "Burundi",
+                                "type": "Software",
+                                "salary": 500000,
+                                "is_saved": True
+                            }
+                        }
+                    )
+                ]
+            ),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"application/json"},
+                description="Job with this id does not exist",
+                examples=[
+                    OpenApiExample(
+                        name="Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "Job with this id does not exist",
+                            "code": "non_existent",
+                        }
+                    )
+                ]
+            ),
+            status.HTTP_409_CONFLICT: OpenApiResponse(
+                response={"application/json"},
+                description="Job is already saved",
+                examples=[
+                    OpenApiExample(
+                        name="Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "Job is already saved",
+                            "code": "already_exists",
+                        }
+                    )
+                ]
+            )
+        }
+    )
+
+
+def delete_saved_jobs_docs():
+    return extend_schema(
+        summary="Delete saved job",
+        description=(
+            """
+            This endpoint allows a job seeker to delete a saved job, pass in the `id` of the saved job to the path parameter.
+            """
+        ),
+        tags=["Job (Seeker)"],
+        responses={
+            status.HTTP_204_NO_CONTENT: OpenApiResponse(
+                response={"application/json"},
+                description="Successfully deleted saved job",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully deleted saved job",
+                        }
+                    )
+                ]
+            ),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response={"application/json"},
+                description="Saved job with this id does not exist",
+                examples=[
+                    OpenApiExample(
+                        name="Error Response",
+                        value={
+                            "status": "failure",
+                            "message": "Saved job with this id does not exist",
+                            "code": "non_existent",
+                        }
+                    )
+                ]
+            ),
+        }
+    )
+
+
+def retrieve_all_saved_jobs_docs():
+    return extend_schema(
+        summary="Get saved jobs",
+        description=(
+            """
+            Retrieve all saved jobs: This endpoint allows a job seeker to get a list of saved jobs.
+            `P.S`: Use the job id to get the details of the job using the job details endpoint.
+            """
+        ),
+        tags=["Job (Seeker)"],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                response={"application/json"},
+                description="Successfully retrieved saved job",
+                examples=[
+                    OpenApiExample(
+                        name="Success Response",
+                        value={
+                            "status": "success",
+                            "message": "Successfully retrieved saved jobs",
+                            "data": {
+                                "saved_jobs": [
+                                    {
+                                        "id": "3cd47f86-539f-4253-b2f3-974b45c7590a",
+                                        "job_id": "ee33b210-93c0-46c6-abea-58841db8dec9",
+                                        "title": "Backend Engineer",
+                                        "recruiter": {
+                                            "id": "eced692c-b5fe-4ebb-b4ca-7faacc0bbc7a",
+                                            "name": "Amazon"
+                                        },
+                                        "job_image": "/media/static/jobs/Screenshot_from_2024-07-01_10-55-13.png",
+                                        "location": "Burundi",
+                                        "type": "Software",
+                                        "salary": 500000,
+                                        "is_saved": True
+                                    }
+                                ]
+                            }
+                        }
+                    )
+                ]
+            ),
         }
     )
