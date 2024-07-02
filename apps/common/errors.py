@@ -20,3 +20,4 @@ class ErrorCode:
     INSUFFICIENT_COINS = "insufficient_coins"
     INVALID_DATA_TYPE = "invalid_data_type"
     OTHER_ERROR = "other_error"
+    EXPIRED_TOKEN = "expired_token"
