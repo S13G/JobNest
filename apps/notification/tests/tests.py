@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.urls import reverse_lazy
 
-from apps.common.tests import AuthTestCase
+from apps.common.tests.tests import AuthTestCase
 
 User = get_user_model()
 

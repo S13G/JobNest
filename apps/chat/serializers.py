@@ -7,5 +7,5 @@ class MessageSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if not attrs.get("text"):
-            raise serializers.ValidationError({"text": "This field is required."})
+            raise serializers.ValidationError("This field is required.")
         return attrs

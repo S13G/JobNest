@@ -6,7 +6,7 @@ from django.db.models import Q
 
 from apps.chat.models import Message
 from apps.chat.serializers import MessageSerializer
-from apps.common.consumers import BaseConsumer
+from apps.common.socket.consumers import BaseConsumer
 from apps.common.errors import ErrorCode
 from apps.common.exceptions import RequestError
 
@@ -57,6 +57,7 @@ class ChatConsumer(BaseConsumer):
     async def send_message(self, message_text):
         # Await the coroutine and get the result
         message_data = await self.message_data(message=message_text)
+
         # Send message to room group
         await self.channel_layer.group_send(
             self.room_group_name,

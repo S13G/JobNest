@@ -11,7 +11,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenBlacklistVi
 
 from apps.common.permissions import IsAuthenticatedEmployee, IsAuthenticatedCompany
 from apps.common.responses import CustomResponse
-from apps.core.docs import *
+from apps.core.docs.docs import *
 from apps.core.emails import send_otp_email
 from apps.core.selectors import *
 from apps.core.serializers import *

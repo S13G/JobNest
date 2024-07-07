@@ -1,7 +1,7 @@
 from drf_spectacular.utils import OpenApiResponse, OpenApiExample, extend_schema
 from rest_framework import status
 
-from .serializers import LoginSerializer
+from apps.core.serializers import LoginSerializer
 
 
 def employee_registration_docs():
@@ -135,6 +135,7 @@ def verify_email_docs():
 
         - `email_address`: The user's email address.
         - `otp`: The otp sent to the user's email address.
+        Pass in the email otp secret generated
         """,
         tags=['Email Verification'],
         responses={

@@ -7,4 +7,5 @@ urlpatterns = [
     path("messages/<str:friend_id>", RetrieveChatView.as_view(), name="retrieve-chat"),
     path("messages/archive/<str:friend_id>", ArchiveChatView.as_view(), name="archive-chat"),
     path("messages/unarchive/<str:friend_id>", RemoveArchivedChatView.as_view(), name="unarchived-chat"),
+    path("messages/archive/", RetrieveArchivedChatsView.as_view(), name="retrieve-archived-chats"),
 ]

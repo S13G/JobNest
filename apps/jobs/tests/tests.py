@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse_lazy, reverse
 
-from apps.common.tests import AuthTestCase
+from apps.common.tests.tests import AuthTestCase
 from apps.core.models import CompanyProfile, EmployeeProfile
 from apps.jobs.models import Job, JobType, AppliedJob, SavedJob
 

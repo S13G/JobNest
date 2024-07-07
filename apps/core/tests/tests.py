@@ -4,7 +4,7 @@ import pyotp
 from django.urls import reverse_lazy
 from django.utils import timezone
 
-from apps.common.tests import AuthTestCase
+from apps.common.tests.tests import AuthTestCase
 from apps.core.models import OTPSecret
 
 

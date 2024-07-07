@@ -1,6 +1,4 @@
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
@@ -8,7 +6,7 @@ from apps.common.errors import ErrorCode
 from apps.common.exceptions import RequestError
 from apps.common.permissions import IsAuthenticatedEmployee
 from apps.common.responses import CustomResponse
-from apps.misc.docs import *
+from apps.misc.docs.docs import *
 from apps.misc.filters import FAQFilter
 from apps.misc.models import Tip, FAQ, FAQType
 from apps.misc.serializers import TipSerializer

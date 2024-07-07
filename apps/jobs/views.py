@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 
 from apps.common.permissions import IsAuthenticatedEmployee, IsAuthenticatedCompany
 from apps.common.responses import CustomResponse
-from apps.jobs.docs import *
+from apps.jobs.docs.docs import *
 from apps.jobs.filters import JobFilter, AppliedJobFilter, VacanciesFilter
 from apps.jobs.selectors import *
 from apps.jobs.serializers import CreateJobSerializer, UpdateVacanciesSerializer, UpdateAppliedJobSerializer, \
