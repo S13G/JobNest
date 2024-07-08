@@ -1,6 +1,6 @@
 import pyotp
 from django.contrib.auth import get_user_model
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from rest_framework.test import APITestCase
 
 
@@ -11,12 +11,12 @@ class AuthTestCase(APITestCase):
 
         self.employee_data = {
             'email': 'test@example.com',
-            'password': 'test_password',
+            'password': 'Testpassword#1234',
         }
 
         self.recruiter_data = {
             'email': 'testrecruiter@example.com',
-            'password': 'testpassword',
+            'password': 'Testpassword#1234',
         }
 
         self.tokens = ''
@@ -24,7 +24,6 @@ class AuthTestCase(APITestCase):
         # Store URLs in variables
         self.employee_registration_url = reverse_lazy('employee-registration')
         self.company_registration_url = reverse_lazy('company-registration')
-        self.verify_email_url = reverse_lazy('verify-email')
         self.login_url = reverse_lazy('login')
         self.refresh_token_url = reverse_lazy('refresh-token')
         self.home_url = reverse_lazy('jobs-home')
@@ -33,65 +32,63 @@ class AuthTestCase(APITestCase):
         # Test successful registration
         response = self.client.post(self.employee_registration_url, data=self.employee_data)
         self.assertEqual(response.status_code, 201)
+        otp_secret = response.data.get('data').get('secret')
 
         employee = self.user.objects.get(email=self.employee_data.get('email'))
-        return employee
+        return employee, otp_secret
 
     def _company_registration_success(self):
         # Test successful registration
         response = self.client.post(self.company_registration_url, data=self.recruiter_data)
         self.assertEqual(response.status_code, 201)
+        otp_secret = response.data.get('data').get('secret')
 
         company = self.user.objects.get(email=self.recruiter_data.get('email'))
-        return company
+        return company, otp_secret
 
     def _email_verification_success(self):
         # Using employee for the verification process since it's similar to the company
-        employee = self._employee_registration_success()
-
-        # Test successful email verification
-        otp_secret = pyotp.random_base32()
+        employee, otp_secret = self._employee_registration_success()
 
         # Generate the OTP using the secret
-        totp = pyotp.TOTP(otp_secret.secret, interval=600)
+        totp = pyotp.TOTP(s=otp_secret, interval=300, digits=4)
         otp = totp.now()
 
         user_data = {'email': employee.email, 'otp': otp}
 
-        response = self.client.post(self.verify_email_url, data=user_data)
+        verify_email_url = reverse('verify-email', kwargs={'otp_secret': otp_secret})
+
+        response = self.client.post(verify_email_url, data=user_data)
 
         self.assertEqual(response.status_code, 200)
         self.assertIn('Email verification successful', response.data.get('message'))
 
-        return employee, otp_secret
+        return employee
 
     def _company_email_verification_success(self):
         # Using company for the verification process
-        company = self._company_registration_success()
-
-        # Test successful email verification
-        otp_secret = pyotp.random_base32()
+        company, otp_secret = self._company_registration_success()
 
         # Generate the OTP using the secret
-        totp = pyotp.TOTP(otp_secret.secret, interval=600)
+        totp = pyotp.TOTP(s=otp_secret, interval=300, digits=4)
         otp = totp.now()
 
         user_data = {'email': company.email, 'otp': otp}
 
-        response = self.client.post(self.verify_email_url, data=user_data)
+        verify_email_url = reverse('verify-email', kwargs={'otp_secret': otp_secret})
+
+        response = self.client.post(verify_email_url, data=user_data)
 
         self.assertEqual(response.status_code, 200)
         self.assertIn('Email verification successful', response.data.get('message'))
 
-        return company, otp_secret
+        return company
 
     def _login_success(self):
         # Test with registered employee profile
-        employee, _ = self._email_verification_success()
+        employee = self._email_verification_success()
 
-        user_data = {"email": employee.email, "password": 'test_password'}
-
-        response = self.client.post(self.login_url, data=user_data)
+        response = self.client.post(self.login_url, data=self.employee_data)
 
         self.assertEqual(response.status_code, 200)
         self.assertIn('Logged in successfully', response.data.get('message'))
@@ -104,11 +101,9 @@ class AuthTestCase(APITestCase):
 
     def _company_login_success(self):
         # Test with registered company profile
-        company, _ = self._company_email_verification_success()
+        company = self._company_email_verification_success()
 
-        user_data = {"email": company.email, "password": 'testpassword'}
-
-        response = self.client.post(self.login_url, data=user_data)
+        response = self.client.post(self.login_url, data=self.recruiter_data)
 
         self.assertEqual(response.status_code, 200)
         self.assertIn('Logged in successfully', response.data.get('message'))

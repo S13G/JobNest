@@ -6,14 +6,17 @@ from apps.core.serializers import LoginSerializer
 
 def employee_registration_docs():
     return extend_schema(
-        summary="Employee registration",
+        summary="Register a new employee account",
         description=(
             """
-            This endpoint allows a user to register an employee account.
-            The request should include the following data:
-            - `email`: The email address.
-            - `password`: The password.
-            This also returns to you the secret for the email which should be used for verification
+            This endpoint allows the registration of a new employee account. 
+            The request must include the following data:
+
+            - `email`: The email address of the employee.
+            - `password`: The password for the new account.
+
+            Upon successful registration, the response will include a secret 
+            that should be used for email verification.
             """
         ),
         tags=['Registration'],
@@ -67,14 +70,17 @@ def employee_registration_docs():
 
 def company_registration_docs():
     return extend_schema(
-        summary="Company registration",
+        summary="Register a new company account",
         description=(
             """
-            This endpoint allows a user to register a company account.
-            The request should include the following data:
-            - `email`: The email address.
-            - `password`: The password.
-            This also returns to you the secret for the email which should be used for verification
+            This endpoint allows the registration of a new company account.
+            The request must include the following data:
+
+            - `email`: The email address of the company.
+            - `password`: The password for the new account.
+
+            Upon successful registration, the response will include a secret
+            that should be used for email verification.
             """
         ),
         tags=['Registration'],
@@ -127,16 +133,18 @@ def company_registration_docs():
 
 def verify_email_docs():
     return extend_schema(
-        summary="Email verification",
-        description=
-        """
-        This endpoint allows a registered user to verify their email address with an OTP.
-        The request should include the following data:
+        summary="Verify email address with OTP",
+        description=(
+            """
+            This endpoint allows a registered user to verify their email address using a one-time password (OTP).
+            The request must include the following data:
 
-        - `email_address`: The user's email address.
-        - `otp`: The otp sent to the user's email address.
-        Pass in the email otp secret generated
-        """,
+            - `email_address`: The user's email address.
+            - `otp`: The OTP sent to the user's email address.
+
+            Ensure you pass the email OTP secret generated during the registration process.
+            """
+        ),
         tags=['Email Verification'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
@@ -194,14 +202,15 @@ def verify_email_docs():
 
 def resend_email_verification_code_docs():
     return extend_schema(
-        summary="Send / resend email verification code",
-        description=
-        """
-        This endpoint allows a registered user to send or resend email verification code to their registered email address.
-        The request should include the following data:
+        summary="Send or resend email verification code",
+        description=(
+            """
+            This endpoint allows a registered user to send or resend an email verification code to their registered email address.
+            The request must include the following data:
 
-        - `email_address`: The user's email address.
-        """,
+            - `email_address`: The user's email address.
+            """
+        ),
         tags=['Email Verification'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
@@ -246,13 +255,14 @@ def resend_email_verification_code_docs():
 def send_new_email_verification_code_docs():
     return extend_schema(
         summary="Send email change verification code",
-        description=
-        """
-        This endpoint allows an authenticated user to send a verification code to new email they want to change to.
-        The request should include the following data:
+        description=(
+            """
+            This endpoint allows an authenticated user to send a verification code to a new email address they want to change to.
+            The request must include the following data:
 
-        - `email_address`: The user's new email address.
-        """,
+            - `email_address`: The user's new email address.
+            """
+        ),
         tags=['Email Change'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
@@ -289,16 +299,18 @@ def send_new_email_verification_code_docs():
 def change_email_docs():
     return extend_schema(
         summary="Change account email address",
-        description=
-        """
-        This endpoint allows an authenticated user to change their account's email address and user can change after 10 days.
-        The request should include the following data:
+        description=(
+            """
+            This endpoint allows an authenticated user to change their account's email address. 
+            Note that the email address can only be changed once every 10 days. 
+            The request must include the following data:
 
-        - `email_address`: The user's new email address.
-        - `otp`: The code sent
+            - `email_address`: The user's new email address.
+            - `otp`: The verification code sent to the new email address.
 
-        Pass in the otp secret
-        """,
+            Ensure you pass the OTP secret generated during the verification process.
+            """
+        ),
         tags=['Email Change'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
@@ -348,11 +360,13 @@ def change_email_docs():
 
 def login_docs():
     return extend_schema(
-        summary="Login",
-        description=
-        """
-        This endpoint authenticates a registered and verified user and provides the necessary authentication tokens.
-        """,
+        summary="Authenticate and obtain authentication tokens",
+        description=(
+            """
+            This endpoint authenticates a registered and verified user and provides the necessary authentication tokens.
+            The request must be made using the LoginSerializer.
+            """
+        ),
         request=LoginSerializer,
         tags=['Login'],
         responses={
@@ -514,15 +528,17 @@ def refresh_docs():
 
 def request_forgot_password_code_docs():
     return extend_schema(
-        summary="Request new password code for forgot password",
-        description=
-        """
-        This endpoint allows a user to request a verification code to reset their password if forgotten.
-        The request should include the following data:
+        summary="Request password reset code",
+        description=(
+            """
+            This endpoint allows a user to request a verification code to reset their password if it has been forgotten.
+            The request must include the following data:
 
-        - `email`: The user's email address.
-        This will also return to you an otp secret that you can use to reset your password.
-        """,
+            - `email`: The user's email address.
+
+            The response will also include an OTP secret that can be used to reset the password.
+            """
+        ),
         tags=['Password Change'],
         responses={
             status.HTTP_404_NOT_FOUND: OpenApiResponse(
@@ -558,18 +574,18 @@ def request_forgot_password_code_docs():
 
 def verify_forgot_password_code_docs():
     return extend_schema(
-        summary="Verify forgot password code for unauthenticated users",
-        description=
-        """
-        This endpoint allows a user to verify the verification code they got to reset the password if forgotten.
-        The user will be stored in the token which will be gotten to make sure it is the right user that is
-        changing his/her password
+        summary="Verify password reset code for unauthenticated users",
+        description=(
+            """
+            This endpoint allows a user to verify the verification code received for resetting their password if forgotten.
+            The user will be identified and stored in a token to ensure that the correct user is changing their password.
 
-        The request should include the following data:
+            The request must include the following data:
 
-        - `email`: The user's email
-        - `otp`: The verification code sent to the user's email.
-        """,
+            - `email`: The user's email address.
+            - `otp`: The verification code sent to the user's email.
+            """
+        ),
         tags=['Password Change'],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
@@ -620,15 +636,16 @@ def verify_forgot_password_code_docs():
 
 def change_forgotten_password_docs():
     return extend_schema(
-        summary="Change password for forgotten password(unathenticated)",
-        description=
-        """
-        This endpoint allows the unauthenticated user to change their password after requesting for a code.
-        The request should include the following data:
-        - `token`: Pass in the encrypted token you got from the previous endpoint.
-        - `password`: The new password.
-        - `confirm_password`: The new password again.
-        """,
+        summary="Change password for forgotten password (unauthenticated)",
+        description=(
+            """
+            This endpoint allows an unauthenticated user to change their password after requesting a verification code.
+            The request must include the following data:
+            - `token`: The encrypted token received from the previous endpoint.
+            - `password`: The new password.
+            - `confirm_password`: The new password again to confirm.
+            """
+        ),
         tags=['Password Change'],
         responses={
             status.HTTP_202_ACCEPTED: OpenApiResponse(
@@ -651,14 +668,15 @@ def change_forgotten_password_docs():
 def change_password_docs():
     return extend_schema(
         summary="Change password for authenticated users",
-        description=
-        """
-        This endpoint allows the authenticated user to change their password.
-        The request should include the following data:
+        description=(
+            """
+            This endpoint allows an authenticated user to change their password.
+            The request must include the following data:
 
-        - `password`: The new password.
-        - `confirm_password`: The new password again.
-        """,
+            - `password`: The new password.
+            - `confirm_password`: The new password again for confirmation.
+            """
+        ),
         tags=['Password Change'],
         responses={
             status.HTTP_202_ACCEPTED: OpenApiResponse(
