@@ -23,16 +23,16 @@ class JobsTestCase(AuthTestCase):
         # Using a new recruiter data to avoid conflicts with other test cases
         self.new_recruiter_data = {
             'email': 'testrecruiter2@example.com',
-            'password': 'testpassword',
+            'password': 'testpassword#1234',
         }
 
-        self.new_recruiter = User.objects.create_user(**self.new_recruiter_data, company=True, 
+        self.new_recruiter = User.objects.create_user(**self.new_recruiter_data, company=True,
                                                       email_verified=True)
 
         # Creating a company profile for the new recruiter
         CompanyProfile.objects.create(user=self.new_recruiter, name='Test Company', country='US')
 
-        with open('apps/jobs/test_data.json', 'r') as f:
+        with open('apps/jobs/tests/mock/test_data.json') as f:
             job_types_data = json.load(f)['job_types_data']
 
         JobType.objects.bulk_create([JobType(name=name) for name in job_types_data])
@@ -40,7 +40,7 @@ class JobsTestCase(AuthTestCase):
         self.job_types = JobType.objects.all()
 
         # read data from json file
-        with open('apps/jobs/test_data.json', 'r') as f:
+        with open('apps/jobs/tests/mock/test_data.json') as f:
             jobs_data = json.load(f)['jobs_data']
 
         for job_data in jobs_data:
@@ -68,7 +68,8 @@ class JobsTestCase(AuthTestCase):
         self.assertEqual(response.status_code, 200)
 
         # adding 'type' query parameter to filter results
-        response = self.client.get(self.home_url, {'type': '', 'location': 'Los Angeles'})
+        query_params = {'type': '', 'location': 'Los Angeles'}
+        response = self.client.get(self.home_url, data=query_params)
         self.assertEqual(response.status_code, 200)
 
     def test_get_specific_details_with_employee_login(self):
@@ -76,7 +77,7 @@ class JobsTestCase(AuthTestCase):
 
         single_job = self.jobs.first()
         retrieve_single_job_url = reverse('job-details', kwargs={'id': single_job.id})
-        response = self.client.get(retrieve_single_job_url, format='json')
+        response = self.client.get(retrieve_single_job_url)
         self.assertEqual(response.status_code, 200)
 
     def test_apply_job(self):
@@ -234,9 +235,10 @@ class JobsTestCase(AuthTestCase):
             'salary': 1000.00,
             'location': 'PT',
             'type': str(job_type.id),
-            'requirements': ['Requirement 3', 'Requirement 2'],
+            'requirements': [{'id': '', 'requirement': ''}],
         }
         updated_response = self.client.patch(update_job_vacancy_url, data=updated_data)
+        print(updated_response.data)
         self.assertEqual(updated_response.status_code, 202)
 
         # Delete a job
@@ -258,7 +260,7 @@ class JobsTestCase(AuthTestCase):
         file_name = 'test.pdf'
         test_file = SimpleUploadedFile(file_name, file_content)
 
-        created_applicant = self.user.objects.create_user(**self.employee_data,  email_verified=True)
+        created_applicant = self.user.objects.create_user(**self.employee_data, email_verified=True)
 
         # Create employee profile for applicant
         data = {

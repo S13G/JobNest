@@ -62,6 +62,13 @@ def get_existing_user(email: str) -> None or User:
     return user
 
 
+def check_existing_user(email: str) -> None:
+    user = User.objects.get_or_none(email=email)
+    if user is not None:
+        raise RequestError(err_code=ErrorCode.ALREADY_EXISTS, err_msg="User with this email exists",
+                           status_code=status.HTTP_409_CONFLICT)
+
+
 def otp_verification(otp_secret: str, code: str):
     otp = decode_otp_from_secret(otp_secret=otp_secret)
 

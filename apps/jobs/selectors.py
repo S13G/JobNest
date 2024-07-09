@@ -1,18 +1,15 @@
 from typing import List
 
-import pycountry
-from django.contrib.auth import get_user_model
 from django.db.models import Q, QuerySet
 from django.http import HttpRequest
 from rest_framework import status
 
 from apps.common.errors import ErrorCode
 from apps.common.exceptions import RequestError
-from apps.jobs.choices import STATUS_PENDING, STATUS_ACCEPTED, STATUS_REJECTED, STATUS_SCHEDULED_FOR_INTERVIEW
-from apps.jobs.models import Job, JobType, AppliedJob, SavedJob, JobRequirement
+from apps.jobs.choices import *
+from apps.jobs.models import *
 from apps.misc.models import Tip
-from apps.notification.choices import NOTIFICATION_JOB_APPLIED, NOTIFICATION_APPLICATION_ACCEPTED, \
-    NOTIFICATION_APPLICATION_REJECTED, NOTIFICATION_APPLICATION_SCHEDULED_FOR_INTERVIEW
+from apps.notification.choices import *
 from apps.notification.models import Notification
 
 User = get_user_model()
@@ -60,6 +57,7 @@ def job_home_data(queryset: List[Job], profile_name: str, tip: Tip, job_types: L
             }
             for job_type in job_types
         ],
+
         "jobs": [
             {
                 "id": job.id,
@@ -351,7 +349,8 @@ def create_vacancy_application(current_user: User, data: dict, requirements_data
         ]
         JobRequirement.objects.bulk_create(job_requirements)
     except Exception as e:
-        raise RequestError(err_code=ErrorCode.OTHER_ERROR, err_msg=f"An error occurred while trying to create a job: {e}",
+        raise RequestError(err_code=ErrorCode.OTHER_ERROR,
+                           err_msg=f"An error occurred while trying to create a job: {e}",
                            status_code=status.HTTP_400_BAD_REQUEST)
 
     data = {

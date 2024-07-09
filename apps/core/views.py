@@ -155,7 +155,7 @@ class SendNewEmailVerificationCodeView(APIView):
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data.get('email')
 
-        _ = get_existing_user(email=email)
+        check_existing_user(email=email)
 
         otp_secret = pyotp.random_base32()
 
