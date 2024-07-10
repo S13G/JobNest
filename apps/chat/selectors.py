@@ -59,12 +59,12 @@ def retrieve_chat_list_data(messages: QuerySet, current_user: User) -> dict:
     return data
 
 
-def get_friend_by_id(friend_id: str) -> User | RequestError:
+def get_friend_by_id(friend_id: str) -> User:
     friend = User.objects.get_or_none(id=friend_id)
 
     if friend is None:
-        return RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Friend does not exist",
-                            status_code=status.HTTP_400_BAD_REQUEST)
+        raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Friend does not exist",
+                           status_code=status.HTTP_400_BAD_REQUEST)
     return friend
 
 
@@ -119,8 +119,8 @@ def archive_chat(friend_id: str, current_user: User) -> RequestError:
         ArchivedMessage.objects.bulk_create(archived_messages, ignore_conflicts=True)
 
     except Message.DoesNotExist:
-        return RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Chat does not exist",
-                            status_code=status.HTTP_400_BAD_REQUEST)
+        raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Chat does not exist",
+                           status_code=status.HTTP_400_BAD_REQUEST)
 
 
 def retrieve_archive_chat_list(messages: QuerySet, current_user: User) -> dict:

@@ -6,9 +6,9 @@ from django.db.models import Q
 
 from apps.chat.models import Message
 from apps.chat.serializers import MessageSerializer
-from apps.common.socket.consumers import BaseConsumer
 from apps.common.errors import ErrorCode
 from apps.common.exceptions import RequestError
+from apps.common.socket.consumers import BaseConsumer
 
 User = get_user_model()
 

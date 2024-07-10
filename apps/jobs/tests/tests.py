@@ -235,10 +235,8 @@ class JobsTestCase(AuthTestCase):
             'salary': 1000.00,
             'location': 'PT',
             'type': str(job_type.id),
-            'requirements': [{'id': '', 'requirement': ''}],
         }
         updated_response = self.client.patch(update_job_vacancy_url, data=updated_data)
-        print(updated_response.data)
         self.assertEqual(updated_response.status_code, 202)
 
         # Delete a job

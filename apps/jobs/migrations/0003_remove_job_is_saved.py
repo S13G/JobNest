@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('jobs', '0002_alter_appliedjob_managers_alter_job_image'),
     ]

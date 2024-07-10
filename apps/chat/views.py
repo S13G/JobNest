@@ -87,7 +87,7 @@ class RemoveArchivedChatView(APIView):
             )
             archived_messages.delete()
         except Message.DoesNotExist:
-            return RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Chat does not exist",
+            raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Chat does not exist",
                                 status_code=status.HTTP_400_BAD_REQUEST)
 
         return CustomResponse.success(message="Unarchived specific chat")
