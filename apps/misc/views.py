@@ -1,3 +1,5 @@
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -19,6 +21,7 @@ class RetrieveAllTipsView(APIView):
     permission_classes = (IsAuthenticatedEmployee,)
 
     @retrieve_all_tips_docs()
+    @method_decorator(cache_page(60 * 15, key_prefix="retrieve_all_tips"))
     def get(self, request):
         tips = Tip.objects.only('title').order_by('-created')
 
@@ -75,6 +78,7 @@ class FilterAllFAQsView(APIView):
     filter_backends = [DjangoFilterBackend]
 
     @filter_all_faqs_docs()
+    @method_decorator(cache_page(60 * 30, key_prefix="retrieve_faqs"))
     def get(self, request):
         queryset = FAQ.objects.select_related('type').all().order_by('question')
         queryset = self.filterset_class(data=request.GET, queryset=queryset).qs

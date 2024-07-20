@@ -23,6 +23,14 @@ CHANNEL_LAYERS = {
     },
 }
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDISCLOUD_URL,
+        "KEY_PREFIX": "jobnest",
+    }
+}
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',

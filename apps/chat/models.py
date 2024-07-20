@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.db.models import UniqueConstraint
 
 from apps.common.models import BaseModel
 
@@ -23,7 +24,11 @@ class ArchivedMessage(BaseModel):
     message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name="archived_by_users")
 
     class Meta:
-        unique_together = ('user', 'message')
+        constraints = [
+            UniqueConstraint(
+                fields=['user', 'message'], name='unique_user_message'
+            )
+        ]
 
     def __str__(self):
         return f"Message {self.message.id} archived by {self.user.email}"

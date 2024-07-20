@@ -1,6 +1,7 @@
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.db import models
 
 from apps.common.models import BaseModel
@@ -31,3 +32,4 @@ class Notification(BaseModel):
                 }
             }
         )
+        cache.delete("all_notifications")

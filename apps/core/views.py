@@ -2,7 +2,6 @@ import pyotp
 from django.contrib.auth import authenticate
 from django.db import transaction
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenBlacklistSerializer, TokenObtainPairSerializer, \
@@ -31,7 +30,6 @@ REGISTRATION
 
 class EmployeeRegistrationView(APIView):
     serializer_class = RegisterSerializer
-    throttle_classes = [UserRateThrottle]
 
     @employee_registration_docs()
     @transaction.atomic
@@ -59,7 +57,6 @@ class EmployeeRegistrationView(APIView):
 
 class CompanyRegistrationView(APIView):
     serializer_class = RegisterSerializer
-    throttle_classes = [UserRateThrottle]
 
     @company_registration_docs()
     @transaction.atomic
@@ -196,7 +193,6 @@ class ChangeEmailView(APIView):
 
 class LoginView(TokenObtainPairView):
     serializer_class = TokenObtainPairSerializer
-    throttle_classes = [UserRateThrottle]
 
     @login_docs()
     @transaction.atomic
@@ -266,7 +262,6 @@ class RefreshView(TokenRefreshView):
 
 class RequestForgotPasswordCodeView(APIView):
     serializer_class = RequestNewPasswordCodeSerializer
-    throttle_classes = [AnonRateThrottle]
 
     @request_forgot_password_code_docs()
     @transaction.atomic
@@ -290,7 +285,6 @@ class RequestForgotPasswordCodeView(APIView):
 
 class VerifyForgotPasswordCodeView(APIView):
     serializer_class = VerifyEmailSerializer
-    throttle_classes = [AnonRateThrottle]
 
     @verify_forgot_password_code_docs()
     def post(self, request, *args, **kwargs):
@@ -312,7 +306,6 @@ class VerifyForgotPasswordCodeView(APIView):
 
 class ChangeForgottenPasswordView(APIView):
     serializer_class = ChangePasswordSerializer
-    throttle_classes = [AnonRateThrottle]
 
     @change_forgotten_password_docs()
     @transaction.atomic
@@ -333,7 +326,6 @@ class ChangeForgottenPasswordView(APIView):
 class ChangePasswordView(APIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = ChangePasswordSerializer
-    throttle_classes = [UserRateThrottle]
 
     @change_password_docs()
     @transaction.atomic
