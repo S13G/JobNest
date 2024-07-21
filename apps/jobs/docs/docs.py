@@ -458,7 +458,7 @@ def filter_applied_jobs_docs():
             OpenApiParameter('status', type=OpenApiTypes.STR, description="Filter jobs by type",
                              enum=[choice[0] for choice in STATUS_CHOICES]),
         ],
-        tags=["Job  (Seeker)"],
+        tags=["Job (Seeker)"],
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 response={"application/json"},

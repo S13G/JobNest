@@ -1,7 +1,5 @@
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
+from django.core.cache import cache
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
 from apps.common.responses import CustomResponse
@@ -14,10 +12,17 @@ from apps.notification.models import Notification
 class RetrieveAllNotificationsView(APIView):
     permission_classes = (IsAuthenticated,)
 
-    @method_decorator(cache_page(60 * 15, key_prefix="all_notifications"))
     @notification_docs()
     def get(self, request):
         user = request.user
+
+        # Set cache key and retrieve data from cache
+        cache_key = f"all_notifications_{user.id}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return CustomResponse.success(message="Successfully retrieved all notifications", data=cached_data)
+
+        # Get all notifications
         notifications = Notification.objects.select_related("user").filter(user=user)
 
         # Create a list of dictionaries containing notification details
@@ -29,4 +34,7 @@ class RetrieveAllNotificationsView(APIView):
             }
             for single_notification in notifications
         ]
+
+        # Cache the data
+        cache.set(cache_key, data, 60 * 15)
         return CustomResponse.success(message="Successfully retrieved all notifications", data=data)

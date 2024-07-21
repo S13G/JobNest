@@ -52,12 +52,23 @@ class JobsHomeView(APIView):
     filterset_class = JobFilter
 
     @job_home_docs()
-    @method_decorator(cache_page(60 * 60, key_prefix="retrieve_jobs"))
     def get(self, request):
+        # Get query param
+        query_params = request.GET.urlencode()
+
+        # Set key for query_param search results
+        cache_key = f"retrieve_jobs_{query_params}"
+        cached_data = cache.get(cache_key)
+
+        # Return cached data if it exists
+        if cached_data:
+            return CustomResponse.success(message="Retrieved successfully", data=cached_data)
+
         current_user = request.user
         profile_name = current_user.employee_profile.full_name
 
         tip = Tip.objects.only('title').order_by('-created').first()
+
         job_types = JobType.objects.only('name')
 
         queryset = Job.objects.get_active_jobs()
@@ -65,6 +76,9 @@ class JobsHomeView(APIView):
 
         data = job_home_data(queryset=queryset, profile_name=profile_name, tip=tip, job_types=job_types,
                              user=current_user)
+
+        # Set cache data
+        cache.set(cache_key, data, 60 * 60)
         return CustomResponse.success(message="Retrieved successfully", data=data)
 
 
@@ -133,18 +147,22 @@ class FilterAppliedJobsView(APIView):
     @filter_applied_jobs_docs()
     def get(self, request):
         current_user = request.user
-        cache_key = f"filter_applied_jobs_{current_user.id}"
-        cached_data = cache.get(cache_key)
 
+        # Serialize query parameters to use in the cache key
+        query_params = request.GET.urlencode()
+        cache_key = f"filter_applied_jobs_{current_user.id}_{query_params}"
+
+        # Check if cached data exists
+        cached_data = cache.get(cache_key)
         if cached_data:
             return CustomResponse.success(message="Retrieved successfully", data=cached_data)
 
         queryset = AppliedJob.objects.filter(user=current_user).order_by('-created')
-        queryset = self.filterset_class(data=request.GET, queryset=queryset).qs
+        filtered_queryset = self.filterset_class(data=request.GET, queryset=queryset).qs
 
-        data = filter_applied_jobs_data(queryset=queryset)
+        data = filter_applied_jobs_data(queryset=filtered_queryset)
 
-        # cache data
+        # Set cache data
         cache.set(cache_key, data, 60 * 60 * 24)
         return CustomResponse.success(message="Retrieved successfully", data=data)
 
@@ -177,11 +195,24 @@ class RetrieveAllSavedJobsView(APIView):
     permission_classes = (IsAuthenticatedEmployee,)
 
     @retrieve_all_saved_jobs_docs()
-    @method_decorator(cache_page(60 * 60 * 24, key_prefix="retrieve_saved_jobs"))
     def get(self, request):
+        current_user = request.user
+
+        # Set key for query_param search results
+        cache_key = f"retrieve_saved_jobs_{current_user.id}"
+
+        # Check if cached data exists
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return CustomResponse.success(message="Successfully retrieved saved jobs", data=cached_data)
+
         saved_jobs = SavedJob.objects.select_related('job', 'user').filter(user=request.user)
 
         data = get_saved_jobs_data(saved_jobs=saved_jobs, current_user=request.user)
+
+        # Set cache data
+        cache.set(cache_key, data, 60 * 60 * 24)
+
         return CustomResponse.success(message="Successfully retrieved saved jobs", data=data)
 
 
@@ -194,7 +225,6 @@ class SearchVacanciesView(APIView):
     permission_classes = (IsAuthenticatedCompany,)
 
     @search_vacancies_docs()
-    @method_decorator(cache_page(60 * 60, key_prefix="retrieve_vacancies"))
     def get(self, request, *args, **kwargs):
         search = request.query_params.get('search', '')
 
@@ -208,8 +238,18 @@ class VacanciesHomeView(APIView):
     filterset_class = VacanciesFilter
 
     @vacancies_home_docs()
-    @method_decorator(cache_page(60 * 60, key_prefix="retrieve_vacancies"))
     def get(self, request):
+        # Get query param
+        query_params = request.GET.urlencode()
+
+        # Set key for query_param search results
+        cache_key = f"retrieve_vacancies_{query_params}"
+
+        # Return cached data if it exists
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return CustomResponse.success(message="Retrieved successfully", data=cached_data)
+
         profile_name = request.user.company_profile.name
 
         my_vacancies = Job.objects.filter(recruiter=request.user).order_by('-created')
@@ -218,6 +258,9 @@ class VacanciesHomeView(APIView):
         queryset = self.filterset_class(data=request.GET, queryset=my_vacancies).qs
 
         data = vacancies_home_data(queryset=queryset, profile_name=profile_name, applied_jobs=all_applied_jobs)
+
+        # Set cache data
+        cache.set(cache_key, data, 60 * 60)
         return CustomResponse.success(message="Retrieved successfully", data=data)
 
 

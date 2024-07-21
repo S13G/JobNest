@@ -21,3 +21,15 @@ def clear_cache(cache_key_prefixes: list) -> None:
             redis_client.delete(*cache_keys)
 
     return None
+
+
+def clear_user_cache(user_id: str, pattern_string: str):
+    # Create the pattern to match keys containing the user's cache
+    pattern = f"*{pattern_string}_{user_id}*"
+
+    # Fetch keys matching the pattern
+    cache_keys = cache._cache.get_client(1).keys(pattern)
+
+    # Delete the matched keys
+    if cache_keys:
+        cache._cache.get_client(1).delete(*cache_keys)
