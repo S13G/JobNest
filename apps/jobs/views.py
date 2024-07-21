@@ -1,4 +1,6 @@
 from django.db import transaction
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -18,6 +20,7 @@ from apps.misc.models import Tip
 class ListCountriesView(APIView):
 
     @country_docs()
+    @method_decorator(cache_page(60 * 60 * 24 * 7, key_prefix="retrieve_countries"))
     def get(self, request):
         countries = [
             {
@@ -48,6 +51,7 @@ class JobsHomeView(APIView):
     filterset_class = JobFilter
 
     @job_home_docs()
+    @method_decorator(cache_page(60 * 60, key_prefix="retrieve_jobs"))
     def get(self, request):
         current_user = request.user
         profile_name = current_user.employee_profile.full_name
@@ -67,6 +71,7 @@ class JobDetailsView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @job_details_docs()
+    @method_decorator(cache_page(60 * 60, key_prefix="retrieve_job"))
     def get(self, request, *args, **kwargs):
         job_id = kwargs.get('id')
 
@@ -100,6 +105,7 @@ class AppliedJobsSearchView(APIView):
     permission_classes = (IsAuthenticatedEmployee,)
 
     @applied_jobs_search_docs()
+    @method_decorator(cache_page(60 * 60, key_prefix="retrieve_applied_jobs"))
     def get(self, request, *args, **kwargs):
         search = request.query_params.get('search', '')
 
@@ -111,6 +117,7 @@ class AppliedJobDetailsView(APIView):
     permission_classes = (IsAuthenticatedEmployee,)
 
     @applied_job_details_docs()
+    @method_decorator(cache_page(60 * 60, key_prefix="retrieve_applied_job"))
     def get(self, request, *args, **kwargs):
         applied_job_id = kwargs.get('id')
 
@@ -124,6 +131,7 @@ class FilterAppliedJobsView(APIView):
     filterset_class = AppliedJobFilter
 
     @filter_applied_jobs_docs()
+    @method_decorator(cache_page(60 * 60, key_prefix="retrieve_applied_jobs"))
     def get(self, request):
         queryset = AppliedJob.objects.order_by('-created')
         queryset = self.filterset_class(data=request.GET, queryset=queryset).qs
@@ -160,8 +168,9 @@ class RetrieveAllSavedJobsView(APIView):
     permission_classes = (IsAuthenticatedEmployee,)
 
     @retrieve_all_saved_jobs_docs()
+    @method_decorator(cache_page(60 * 60 * 24, key_prefix="retrieve_saved_jobs"))
     def get(self, request):
-        saved_jobs = SavedJob.objects.filter(user=request.user)
+        saved_jobs = SavedJob.objects.select_related('job', 'user').filter(user=request.user)
 
         data = get_saved_jobs_data(saved_jobs=saved_jobs, current_user=request.user)
         return CustomResponse.success(message="Successfully retrieved saved jobs", data=data)
@@ -176,6 +185,7 @@ class SearchVacanciesView(APIView):
     permission_classes = (IsAuthenticatedCompany,)
 
     @search_vacancies_docs()
+    @method_decorator(cache_page(60 * 60, key_prefix="retrieve_vacancies"))
     def get(self, request, *args, **kwargs):
         search = request.query_params.get('search', '')
 
@@ -189,6 +199,7 @@ class VacanciesHomeView(APIView):
     filterset_class = VacanciesFilter
 
     @vacancies_home_docs()
+    @method_decorator(cache_page(60 * 60, key_prefix="retrieve_vacancies"))
     def get(self, request):
         profile_name = request.user.company_profile.name
 
@@ -205,6 +216,7 @@ class RetrieveAllJobTypesView(APIView):
     permission_classes = (IsAuthenticatedCompany,)
 
     @retrieve_all_job_types_docs()
+    @method_decorator(cache_page(60 * 60 * 24 * 7, key_prefix="retrieve_job_types"))
     def get(self, request):
         job_types = JobType.objects.only('id', 'name')
 

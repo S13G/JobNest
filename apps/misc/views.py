@@ -2,6 +2,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
 from apps.common.errors import ErrorCode
@@ -21,7 +22,7 @@ class RetrieveAllTipsView(APIView):
     permission_classes = (IsAuthenticatedEmployee,)
 
     @retrieve_all_tips_docs()
-    @method_decorator(cache_page(60 * 60 * 24 * 5, key_prefix="retrieve_faqs"))
+    @method_decorator(cache_page(60 * 60 * 24 * 5, key_prefix="retrieve_tips"))
     def get(self, request):
         tips = Tip.objects.only('title').order_by('-created')
 
@@ -41,7 +42,7 @@ class RetrieveTipView(APIView):
     permission_classes = (IsAuthenticatedEmployee,)
 
     @retrieve_tip_docs()
-    @method_decorator(cache_page(60 * 60 * 24 * 5, key_prefix="retrieve_faqs"))
+    @method_decorator(cache_page(60 * 60 * 24 * 5, key_prefix="retrieve_tip"))
     def get(self, request, *args, **kwargs):
         tip_id = kwargs.get('tip_id')
 
@@ -59,7 +60,7 @@ class RetrieveAllFAQTypesView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @retrieve_all_faq_types_docs()
-    @method_decorator(cache_page(60 * 60 * 24 * 7, key_prefix="retrieve_faqs"))
+    @method_decorator(cache_page(60 * 60 * 24 * 7, key_prefix="retrieve_faqs_types"))
     def get(self, request):
         queryset = FAQType.objects.only('id', 'name')
 

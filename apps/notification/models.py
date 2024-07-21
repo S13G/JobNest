@@ -34,4 +34,4 @@ class Notification(BaseModel):
         )
 
         # Clear cache
-        clear_cache(cache_key_prefix="all_notifications")
+        clear_cache(cache_key_prefixes=["all_notifications"])

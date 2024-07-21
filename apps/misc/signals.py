@@ -14,7 +14,7 @@ def clear_tips_cache(sender, **kwargs):
     :param kwargs:
     :return:
     """
-    clear_cache(cache_key_prefix="retrieve_all_tips")
+    clear_cache(cache_key_prefixes=["retrieve_tips", "retrieve_tip"])
 
 
 @receiver(post_save, sender=FAQ)
@@ -26,4 +26,4 @@ def clear_faqs_cache(sender, **kwargs):
     :param kwargs:
     :return:
     """
-    clear_cache(cache_key_prefix="retrieve_faqs")
+    clear_cache(cache_key_prefixes=["retrieve_faqs"])
