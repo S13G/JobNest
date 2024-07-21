@@ -17,7 +17,7 @@ class RetrieveAllNotificationsView(APIView):
     @notification_docs()
     def get(self, request):
         user = request.user
-        notifications = Notification.objects.filter(user=user)
+        notifications = Notification.objects.select_related("user").filter(user=user)
 
         # Create a list of dictionaries containing notification details
         data = [

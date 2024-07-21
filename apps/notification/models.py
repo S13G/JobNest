@@ -1,11 +1,11 @@
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
-from django.core.cache import cache
 from django.db import models
 
 from apps.common.models import BaseModel
 from apps.notification.choices import NOTIFICATION_TYPE
+from utilities.cache_clear import clear_cache
 
 User = get_user_model()
 
@@ -32,4 +32,6 @@ class Notification(BaseModel):
                 }
             }
         )
-        cache.delete("all_notifications")
+
+        # Clear cache
+        clear_cache(cache_key_prefix="all_notifications")
