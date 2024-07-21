@@ -16,9 +16,11 @@ class RetrieveAllNotificationsView(APIView):
     def get(self, request):
         user = request.user
 
-        # Set cache key and retrieve data from cache
+        # Set cache key
         cache_key = f"all_notifications_{user.id}"
         cached_data = cache.get(cache_key)
+
+        # Retrieve data from cache if it exists
         if cached_data:
             return CustomResponse.success(message="Successfully retrieved all notifications", data=cached_data)
 
@@ -36,5 +38,5 @@ class RetrieveAllNotificationsView(APIView):
         ]
 
         # Cache the data
-        cache.set(cache_key, data, 60 * 15)
+        cache.set(cache_key, data, 60 * 60)
         return CustomResponse.success(message="Successfully retrieved all notifications", data=data)

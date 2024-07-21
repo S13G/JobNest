@@ -4,6 +4,8 @@ from django.core import validators
 from django.core.validators import validate_email
 from rest_framework import serializers as sr
 
+from utilities.cache_clear import clear_user_cache
+
 User = get_user_model()
 
 
@@ -84,6 +86,9 @@ class EmployeeProfileSerializer(sr.Serializer):
 
         user.save()
         instance.save()
+
+        # Clear cache data
+        clear_user_cache(user_id=user.id, pattern_string="employee_profile")
         return instance
 
 
@@ -124,6 +129,9 @@ class CompanyProfileSerializer(sr.Serializer):
 
         user.save()
         instance.save()
+
+        # Clear cache data
+        clear_user_cache(user_id=user.id, pattern_string="company_profile")
         return instance
 
 

@@ -8,7 +8,8 @@ def clear_cache(cache_key_prefixes: list) -> None:
 
         :param cache_key_prefixes: Variable number of cache key prefixes to match.
         :return: None
-        """
+    """
+
     # Fetch the Redis client
     redis_client = cache._cache.get_client(1)
 
@@ -23,13 +24,21 @@ def clear_cache(cache_key_prefixes: list) -> None:
     return None
 
 
-def clear_user_cache(user_id: str, pattern_string: str):
+def clear_user_cache(user_id: str, pattern_string: str) -> None:
+    """
+    :param user_id:
+    :param pattern_string:
+    :return:
+    """
     # Create the pattern to match keys containing the user's cache
     pattern = f"*{pattern_string}_{user_id}*"
 
+    # Fetch the Redis client
+    redis_client = cache._cache.get_client(1)
+
     # Fetch keys matching the pattern
-    cache_keys = cache._cache.get_client(1).keys(pattern)
+    cache_keys = redis_client.keys(pattern)
 
     # Delete the matched keys
     if cache_keys:
-        cache._cache.get_client(1).delete(*cache_keys)
+        redis_client.delete(*cache_keys)

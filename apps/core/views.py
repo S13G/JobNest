@@ -1,5 +1,6 @@
 import pyotp
 from django.contrib.auth import authenticate
+from django.core.cache import cache
 from django.db import transaction
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -354,9 +355,18 @@ class RetrieveUpdateDeleteEmployeeProfileView(APIView):
     def get(self, request):
         user = request.user
 
+        cache_key = f"employee_profile_{user.id}"
+        cached_data = cache.get(cache_key)
+
+        if cached_data:
+            return CustomResponse.success(message="Retrieved profile successfully", data=cached_data)
+
         profile_instance = get_employee_profile(user=user)
 
         serialized_data = self.serializer_class(profile_instance, context={"request": request}).data
+
+        # Set cache data
+        cache.set(cache_key, serialized_data, timeout=60 * 60 * 24)
         return CustomResponse.success(message="Retrieved profile successfully", data=serialized_data)
 
     @update_employee_profile_docs()
@@ -396,9 +406,18 @@ class RetrieveUpdateDeleteCompanyProfileView(APIView):
     def get(self, request):
         user = request.user
 
+        cache_key = f"company_profile_{user.id}"
+        cached_data = cache.get(cache_key)
+
+        if cached_data:
+            return CustomResponse.success(message="Retrieved profile successfully", data=cached_data)
+
         profile_instance = get_company_profile(user=user)
 
         serialized_data = self.serializer_class(profile_instance, context={"request": request}).data
+
+        # Set cache data
+        cache.set(cache_key, serialized_data, timeout=60 * 60 * 24)
         return CustomResponse.success(message="Retrieved profile successfully", data=serialized_data)
 
     @update_company_profile_docs()
