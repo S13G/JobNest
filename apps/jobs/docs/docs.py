@@ -10,8 +10,7 @@ from apps.jobs.models import JobType
 def country_docs():
     return extend_schema(
         summary="Get all countries",
-        description=
-        """
+        description="""
         This endpoint retrieve all countries
         """,
         tags=['Countries'],
@@ -43,10 +42,9 @@ def search_jobs_docs():
     return extend_schema(
         summary="Search jobs",
         parameters=[
-            OpenApiParameter(name="search", type=OpenApiTypes.STR, required=False)
+            OpenApiParameter(name="search", type=OpenApiTypes.STR)
         ],
-        description=
-        """
+        description="""
         This endpoint allows an authenticated job seeker to search for jobs
         """,
         tags=['Job Seeker Home'],
@@ -105,17 +103,17 @@ def job_home_docs():
             """
         ),
         parameters=[
-            OpenApiParameter('type', type=OpenApiTypes.STR, required=False, description="Filter jobs by type",
+            OpenApiParameter('type', type=OpenApiTypes.STR, description="Filter jobs by type",
                              enum=JobType.objects.values_list('name', flat=True)),
 
-            OpenApiParameter('location', type=OpenApiTypes.STR, required=False,
+            OpenApiParameter('location', type=OpenApiTypes.STR,
                              description="Filter jobs by location: Pass in the countries alpha 2 to get the result",
                              enum=[country.alpha_2 for country in pycountry.countries]),
 
-            OpenApiParameter('salary_min', type=OpenApiTypes.FLOAT, required=False,
+            OpenApiParameter('salary_min', type=OpenApiTypes.FLOAT,
                              description="Filter jobs by salary"),
 
-            OpenApiParameter('salary_max', type=OpenApiTypes.FLOAT, required=False,
+            OpenApiParameter('salary_max', type=OpenApiTypes.FLOAT,
                              description="Filter jobs by salary"),
         ],
         tags=["Job Seeker Home"],
@@ -451,15 +449,13 @@ def applied_job_details_docs():
 def filter_applied_jobs_docs():
     return extend_schema(
         summary="Get all applications and filter",
-        description=(
-            """
-            This endpoint gets all applications the authenticated job seeker has applied to with some filters option
-            
-            ```AVAILABLE FILTERS: PENDING, ACCEPTED, REJECTED, SCHEDULED FOR INTERVIEW```
-            """
-        ),
+        description="""
+        This endpoint gets all applications the authenticated job seeker has applied to with some filters option
+        
+        ```AVAILABLE FILTERS: PENDING, ACCEPTED, REJECTED, SCHEDULED FOR INTERVIEW```
+        """,
         parameters=[
-            OpenApiParameter('status', type=OpenApiTypes.STR, required=False, description="Filter jobs by type",
+            OpenApiParameter('status', type=OpenApiTypes.STR, description="Filter jobs by type",
                              enum=[choice[0] for choice in STATUS_CHOICES]),
         ],
         tags=["Job  (Seeker)"],
@@ -660,8 +656,7 @@ def search_vacancies_docs():
         parameters=[
             OpenApiParameter(name="search", type=OpenApiTypes.STR, required=False)
         ],
-        description=
-        """
+        description="""
         This endpoint allows an authenticated job recruiter to search for his posted vacancies
         """,
         tags=['Job Recruiter Home'],
@@ -714,12 +709,11 @@ def search_vacancies_docs():
 def vacancies_home_docs():
     return extend_schema(
         summary="Recruiter home page",
-        description=
-        """
+        description="""
         Get home page for job recruiter. This endpoint allows an authenticated job recruiter to search, Retrieve all vacant jobs, and all applicants that applied to jobs posted by the authenticated job recruiter.
         """,
         parameters=[
-            OpenApiParameter('active', type=OpenApiTypes.BOOL, required=False, description="Filter jobs by active"),
+            OpenApiParameter('active', type=OpenApiTypes.BOOL, description="Filter jobs by active"),
         ],
         tags=["Job Recruiter Home"],
         responses={
@@ -782,8 +776,7 @@ def vacancies_home_docs():
 def retrieve_all_job_types_docs():
     return extend_schema(
         summary="Retrieve all job types",
-        description=
-        """
+        description="""
         This endpoint allows an authenticated job recruiter to retrieve all job types
         """,
         tags=['Job Recruiter Home'],

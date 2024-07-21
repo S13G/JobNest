@@ -136,7 +136,7 @@ def filter_all_faqs_docs():
         ),
         tags=['FAQs'],
         parameters=[
-            OpenApiParameter('type', OpenApiTypes.STR, required=False, description="Filter FAQs by type",
+            OpenApiParameter('type', OpenApiTypes.STR, description="Filter FAQs by type",
                              enum=FAQType.objects.values_list('name', flat=True))
         ],
         responses={

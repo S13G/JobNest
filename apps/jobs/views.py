@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from django.db import transaction
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
@@ -105,7 +106,6 @@ class AppliedJobsSearchView(APIView):
     permission_classes = (IsAuthenticatedEmployee,)
 
     @applied_jobs_search_docs()
-    @method_decorator(cache_page(60 * 60, key_prefix="retrieve_applied_jobs"))
     def get(self, request, *args, **kwargs):
         search = request.query_params.get('search', '')
 
@@ -131,12 +131,21 @@ class FilterAppliedJobsView(APIView):
     filterset_class = AppliedJobFilter
 
     @filter_applied_jobs_docs()
-    @method_decorator(cache_page(60 * 60, key_prefix="retrieve_applied_jobs"))
     def get(self, request):
-        queryset = AppliedJob.objects.order_by('-created')
+        current_user = request.user
+        cache_key = f"filter_applied_jobs_{current_user.id}"
+        cached_data = cache.get(cache_key)
+
+        if cached_data:
+            return CustomResponse.success(message="Retrieved successfully", data=cached_data)
+
+        queryset = AppliedJob.objects.filter(user=current_user).order_by('-created')
         queryset = self.filterset_class(data=request.GET, queryset=queryset).qs
 
         data = filter_applied_jobs_data(queryset=queryset)
+
+        # cache data
+        cache.set(cache_key, data, 60 * 60 * 24)
         return CustomResponse.success(message="Retrieved successfully", data=data)
 
 
