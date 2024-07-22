@@ -378,8 +378,6 @@ SILENCED_SYSTEM_CHECKS = [
     'staticfiles.W004',
 ]
 
-# database active connection minutes
-CONN_MAX_AGE = 300
 
 # Treblle variables
 TREBLLE_INFO = {
