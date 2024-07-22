@@ -13,4 +13,9 @@ class BaseModel(models.Model):
 
     class Meta:
         abstract = True
+
+        indexes = [
+            models.Index(fields=['-created']),
+        ]
+
         ordering = ("-created",)
