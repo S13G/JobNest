@@ -23,6 +23,7 @@ class RetrieveChatListView(APIView):
     @retrieve_chat_list_docs()
     def get(self, request):
         user = request.user
+
         queryset = Message.objects.select_related("sender", "receiver").filter(
             Q(sender=user) | Q(receiver=user)).exclude(
             archived_by_users__user=user
@@ -31,6 +32,7 @@ class RetrieveChatListView(APIView):
         messages = self.filterset_class(data=request.GET, queryset=queryset).qs
 
         data = retrieve_chat_list_data(messages=messages, current_user=user)
+
         return CustomResponse.success(message="Returned all list of rooms", data=data)
 
 
@@ -88,7 +90,7 @@ class RemoveArchivedChatView(APIView):
             archived_messages.delete()
         except Message.DoesNotExist:
             raise RequestError(err_code=ErrorCode.NON_EXISTENT, err_msg="Chat does not exist",
-                                status_code=status.HTTP_400_BAD_REQUEST)
+                               status_code=status.HTTP_400_BAD_REQUEST)
 
         return CustomResponse.success(message="Unarchived specific chat")
 
@@ -99,7 +101,9 @@ class RetrieveArchivedChatsView(APIView):
     @retrieve_archive_chats_docs()
     def get(self, request):
         user = request.user
+
         archived_messages = ArchivedMessage.objects.filter(user=user).select_related('message', 'user')
 
         data = retrieve_archive_chat_list(messages=archived_messages, current_user=user)
+
         return CustomResponse.success(message="Returned all list of rooms", data=data)

@@ -26,6 +26,7 @@ def clear_cache(cache_key_prefixes: list) -> None:
 
 def clear_user_cache(user_id: str, pattern_string: str) -> None:
     """
+    Clears the cache for a specific user or item.
     :param user_id:
     :param pattern_string:
     :return:
