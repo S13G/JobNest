@@ -67,7 +67,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'apps.common.middleware.current_user.CurrentUserMiddleware',  # middleware to get currently authenticated user for signals
+    'apps.common.middleware.current_user.CurrentUserMiddleware',  # Get currently authenticated user for signals
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'treblle.middleware.TreblleMiddleware',

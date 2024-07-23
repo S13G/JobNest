@@ -18,23 +18,9 @@ User = get_user_model()
 
 
 class BaseGoogleSocialAuthSerializer(serializers.Serializer):
-    """
-    Validates an ID token and returns user data.
-
-    Args:
-        id_token (str): The ID token to validate.
-        register_func (function): The function to use for user registration.
-        profile_serializer (object): The serializer to use for user profile data.
-
-    Returns:
-        dict: The user data.
-
-    Raises:
-        User.DoesNotExist: If the user does not exist in the database.
-    """
     id_token = serializers.CharField()
 
-    def validate_id_token(self, id_token, register_func, profile_serializer):
+    def validate_id_token(self, id_token: str, register_func: callable, profile_serializer):
         """
         Validates an ID token and performs necessary actions based on the token's validity.
 
@@ -55,10 +41,10 @@ class BaseGoogleSocialAuthSerializer(serializers.Serializer):
         except User.DoesNotExist:
             user = register_func(email=email, password=password)
 
-        return self._get_user_data(user, profile_serializer)
+        return self._get_user_data(user=user, profile_serializer_cls=profile_serializer)
 
     @staticmethod
-    def _validate_google_id_token(id_token):
+    def _validate_google_id_token(id_token: str):
         user_data = google.Google.validate(id_token)
 
         # Check if the 'sub' key is present in the user data
@@ -73,12 +59,12 @@ class BaseGoogleSocialAuthSerializer(serializers.Serializer):
         return user_data
 
     @staticmethod
-    def _get_existing_user(email):
+    def _get_existing_user(email: str):
         user = User.objects.get(email=email)
         return user
 
     @staticmethod
-    def _get_user_data(user, profile_serializer_cls):
+    def _get_user_data(user: User, profile_serializer_cls):
         """
         Get user data for serialization.
 
@@ -112,7 +98,7 @@ class BaseGoogleSocialAuthSerializer(serializers.Serializer):
 
 
 class JobSeekerGoogleSocialAuthSerializer(BaseGoogleSocialAuthSerializer):
-    def validate_id_token(self, id_token):
+    def validate_id_token(self, id_token, **kwargs):
         return super().validate_id_token(
             id_token,
             register_job_seeker_social_user,
@@ -121,7 +107,7 @@ class JobSeekerGoogleSocialAuthSerializer(BaseGoogleSocialAuthSerializer):
 
 
 class JobRecruiterGoogleSocialAuthSerializer(BaseGoogleSocialAuthSerializer):
-    def validate_id_token(self, id_token):
+    def validate_id_token(self, id_token, **kwargs):
         return super().validate_id_token(
             id_token,
             register_job_recruiter_social_user,

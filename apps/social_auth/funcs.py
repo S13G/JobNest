@@ -7,7 +7,7 @@ from apps.core.models import EmployeeProfile, CompanyProfile
 User = get_user_model()
 
 
-def register_social_user(email: str, password: str, profile_model) -> Dict[str, str]:
+def register_social_user(email: str, password: str, profile_model) -> Dict:
     """
     Register a social user.
 
