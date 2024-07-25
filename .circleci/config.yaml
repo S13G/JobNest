@@ -1,0 +1,54 @@
+version: 2.1
+orbs:
+ python: circleci/python@2.0.3
+jobs:
+ build_and_test:
+   executor: python/default
+   docker:
+     - image: cimg/python:3.10.2
+   steps:
+     - checkout
+     - python/install-packages:
+         pkg-manager: pip
+     - run:
+         name: Run tests
+         command: |
+           python manage.py test
+ build_and_test_docker:
+   parallelism: 4
+   docker:
+     - image: cimg/python:3.10.2
+   steps:
+     - checkout
+     - setup_remote_docker:
+         version: 20.10.7
+         docker_layer_caching: true
+     - run:
+         name: Configuring environment variables
+         command: |
+           echo "DB_HOST=${DB_HOST}" >> .env
+           echo "DB_NAME=${DB_NAME}" >> .env
+           echo "DB_PORT=${DB_PORT}" >> .env
+           echo "DB_USER=${DB_USER}" >> .env
+           echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
+           echo "DJANGO_SECRET=${DJANGO_SECRET}" >> .env
+           echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" >> .env
+           echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" >> .env
+           echo "AWS_STORAGE_BUCKET_NAME=${AWS_STORAGE_BUCKET_NAME}" >> .env
+           echo "AWS_S3_REGION_NAME=${AWS_S3_REGION_NAME}" >> .env
+           echo "AWS_S3_ENDPOINT_URL=${AWS_S3_ENDPOINT_URL}" >> .env
+
+     - run:
+         name: Build and start Docker Compose services
+         command: |
+           docker-compose build
+           docker-compose up -d
+     - run:
+         name: Stop and remove Docker Compose services
+         command: |
+           docker-compose down
+workflows:
+ run-build-test:
+   jobs:
+     - build_and_test
+     - build_and_test_docker
