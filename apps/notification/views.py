@@ -1,10 +1,10 @@
-from django.core.cache import cache
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.common.responses import CustomResponse
 from apps.notification.docs.docs import notification_docs
 from apps.notification.models import Notification
+from utilities.caching import get_cached_data, set_cached_data
 
 
 # Create your views here.
@@ -18,7 +18,7 @@ class RetrieveAllNotificationsView(APIView):
 
         # Set cache key
         cache_key = f"all_notifications_{user.id}"
-        cached_data = cache.get(cache_key)
+        cached_data = get_cached_data(cache_key=cache_key)
 
         # Retrieve data from cache if it exists
         if cached_data:
@@ -38,5 +38,5 @@ class RetrieveAllNotificationsView(APIView):
         ]
 
         # Cache the data
-        cache.set(cache_key, data, 60 * 60)
+        set_cached_data(cache_key, data, 60 * 60)
         return CustomResponse.success(message="Successfully retrieved all notifications", data=data)

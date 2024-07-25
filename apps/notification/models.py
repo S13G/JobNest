@@ -5,7 +5,7 @@ from django.db import models
 
 from apps.common.models import BaseModel
 from apps.notification.choices import NOTIFICATION_TYPE
-from utilities.cache_clear import clear_user_cache
+from utilities.caching import clear_user_cache
 
 User = get_user_model()
 

@@ -2,6 +2,28 @@ from django.conf import settings
 from django.core.cache import cache
 
 
+def get_cached_data(cache_key: str):
+    """
+        Retrieve cached data by cache key.
+
+        :param cache_key: The key for the cached data.
+        :return: The cached data or None if not found.
+    """
+    cached_data = cache.get(cache_key)
+    return cached_data
+
+
+def set_cached_data(cache_key: str, data, timeout: int):
+    """
+        Set data in the cache with a given key and timeout.
+
+        :param cache_key: The key for the cache entry.
+        :param data: The data to cache.
+        :param timeout: Time in seconds for the cache to expire.
+    """
+    cache.set(cache_key, data, timeout)
+
+
 def clear_cache(cache_key_prefixes: list) -> None:
     """
         Clear cache keys matching any of the given patterns.

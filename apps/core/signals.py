@@ -2,7 +2,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 from apps.core.models import EmployeeProfile, CompanyProfile
-from utilities.cache_clear import clear_user_cache
+from utilities.caching import clear_user_cache
 
 
 @receiver(post_save, sender=EmployeeProfile)

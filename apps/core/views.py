@@ -17,6 +17,7 @@ from apps.core.selectors import *
 from apps.core.serializers import *
 from apps.notification.choices import NOTIFICATION_PROFILE_UPDATED
 from apps.notification.models import Notification
+from utilities.caching import get_cached_data, set_cached_data
 from utilities.encryption import decrypt_token_to_profile, encrypt_profile_to_token
 
 User = get_user_model()
@@ -356,7 +357,7 @@ class RetrieveUpdateDeleteEmployeeProfileView(APIView):
         user = request.user
 
         cache_key = f"employee_profile_{user.id}"
-        cached_data = cache.get(cache_key)
+        cached_data = get_cached_data(cache_key=cache_key)
 
         if cached_data:
             return CustomResponse.success(message="Retrieved profile successfully", data=cached_data)
@@ -366,7 +367,7 @@ class RetrieveUpdateDeleteEmployeeProfileView(APIView):
         serialized_data = self.serializer_class(profile_instance, context={"request": request}).data
 
         # Set cache data
-        cache.set(cache_key, serialized_data, timeout=60 * 60 * 24)
+        set_cached_data(cache_key, serialized_data, timeout=60 * 60 * 24)
         return CustomResponse.success(message="Retrieved profile successfully", data=serialized_data)
 
     @update_employee_profile_docs()
@@ -407,7 +408,7 @@ class RetrieveUpdateDeleteCompanyProfileView(APIView):
         user = request.user
 
         cache_key = f"company_profile_{user.id}"
-        cached_data = cache.get(cache_key)
+        cached_data = get_cached_data(cache_key=cache_key)
 
         if cached_data:
             return CustomResponse.success(message="Retrieved profile successfully", data=cached_data)
@@ -417,7 +418,7 @@ class RetrieveUpdateDeleteCompanyProfileView(APIView):
         serialized_data = self.serializer_class(profile_instance, context={"request": request}).data
 
         # Set cache data
-        cache.set(cache_key, serialized_data, timeout=60 * 60 * 24)
+        set_cached_data(cache_key, serialized_data, timeout=60 * 60 * 24)
         return CustomResponse.success(message="Retrieved profile successfully", data=serialized_data)
 
     @update_company_profile_docs()

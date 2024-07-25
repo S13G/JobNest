@@ -14,6 +14,7 @@ from apps.jobs.selectors import *
 from apps.jobs.serializers import CreateJobSerializer, UpdateVacanciesSerializer, UpdateAppliedJobSerializer, \
     JobApplySerializer
 from apps.misc.models import Tip
+from utilities.caching import set_cached_data, get_cached_data
 
 
 # # Create your views here.
@@ -58,7 +59,7 @@ class JobsHomeView(APIView):
 
         # Set key for query_param search results
         cache_key = f"retrieve_jobs_{query_params}"
-        cached_data = cache.get(cache_key)
+        cached_data = get_cached_data(cache_key=cache_key)
 
         # Return cached data if it exists
         if cached_data:
@@ -78,7 +79,7 @@ class JobsHomeView(APIView):
                              user=current_user)
 
         # Set cache data
-        cache.set(cache_key, data, 60 * 60)
+        set_cached_data(cache_key, data, 60 * 60)
         return CustomResponse.success(message="Retrieved successfully", data=data)
 
 
@@ -86,13 +87,22 @@ class JobDetailsView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @job_details_docs()
-    @method_decorator(cache_page(60 * 60, key_prefix="retrieve_job"))
     def get(self, request, *args, **kwargs):
         job_id = kwargs.get('id')
+
+        # Set key for query_param search results
+        cache_key = f"retrieve_job_{job_id}"
+        cached_data = get_cached_data(cache_key=cache_key)
+
+        # Return cached data if it exists
+        if cached_data:
+            return CustomResponse.success(message="Retrieved successfully", data=cached_data)
 
         job = get_job_by_id(job_id=job_id)
 
         data = job_details_data(job=job, user=request.user, request=request)
+
+        set_cached_data(cache_key=cache_key, data=data, timeout=60 * 60)
         return CustomResponse.success(message="Successfully retrieved job details", data=data)
 
 
@@ -131,11 +141,20 @@ class AppliedJobDetailsView(APIView):
     permission_classes = (IsAuthenticatedEmployee,)
 
     @applied_job_details_docs()
-    @method_decorator(cache_page(60 * 60, key_prefix="retrieve_applied_job"))
     def get(self, request, *args, **kwargs):
         applied_job_id = kwargs.get('id')
 
+        # Set key for query_param search results
+        cache_key = f"retrieve_applied_job_{applied_job_id}"
+        cached_data = get_cached_data(cache_key=cache_key)
+
+        # Return cached data if it exists
+        if cached_data:
+            return CustomResponse.success(message="Retrieved successfully", data=cached_data)
+
         data = applied_job_details_data(job_id=applied_job_id, current_user=request.user)
+
+        set_cached_data(cache_key=cache_key, data=data, timeout=60 * 60)
         return CustomResponse.success(message="Successfully retrieved applied job details", data=data)
 
 
@@ -153,7 +172,7 @@ class FilterAppliedJobsView(APIView):
         cache_key = f"filter_applied_jobs_{current_user.id}_{query_params}"
 
         # Check if cached data exists
-        cached_data = cache.get(cache_key)
+        cached_data = get_cached_data(cache_key=cache_key)
         if cached_data:
             return CustomResponse.success(message="Retrieved successfully", data=cached_data)
 
@@ -163,7 +182,8 @@ class FilterAppliedJobsView(APIView):
         data = filter_applied_jobs_data(queryset=filtered_queryset)
 
         # Set cache data
-        cache.set(cache_key, data, 60 * 60 * 24)
+        set_cached_data(cache_key=cache_key, data=data, timeout=60 * 60 * 24)
+
         return CustomResponse.success(message="Retrieved successfully", data=data)
 
 
@@ -202,7 +222,7 @@ class RetrieveAllSavedJobsView(APIView):
         cache_key = f"retrieve_saved_jobs_{current_user.id}"
 
         # Check if cached data exists
-        cached_data = cache.get(cache_key)
+        cached_data = get_cached_data(cache_key)
         if cached_data:
             return CustomResponse.success(message="Successfully retrieved saved jobs", data=cached_data)
 
@@ -211,7 +231,7 @@ class RetrieveAllSavedJobsView(APIView):
         data = get_saved_jobs_data(saved_jobs=saved_jobs, current_user=request.user)
 
         # Set cache data
-        cache.set(cache_key, data, 60 * 60 * 24)
+        set_cached_data(cache_key=cache_key, data=data, timeout=60 * 60 * 24)
 
         return CustomResponse.success(message="Successfully retrieved saved jobs", data=data)
 
@@ -246,7 +266,7 @@ class VacanciesHomeView(APIView):
         cache_key = f"retrieve_vacancies_{query_params}"
 
         # Return cached data if it exists
-        cached_data = cache.get(cache_key)
+        cached_data = get_cached_data(cache_key=cache_key)
         if cached_data:
             return CustomResponse.success(message="Retrieved successfully", data=cached_data)
 
@@ -260,7 +280,7 @@ class VacanciesHomeView(APIView):
         data = vacancies_home_data(queryset=queryset, profile_name=profile_name, applied_jobs=all_applied_jobs)
 
         # Set cache data
-        cache.set(cache_key, data, 60 * 60)
+        set_cached_data(cache_key=cache_key, data=data, timeout=60 * 60)
         return CustomResponse.success(message="Retrieved successfully", data=data)
 
 
@@ -268,8 +288,13 @@ class RetrieveAllJobTypesView(APIView):
     permission_classes = (IsAuthenticatedCompany,)
 
     @retrieve_all_job_types_docs()
-    @method_decorator(cache_page(60 * 60 * 24 * 7, key_prefix="retrieve_job_types"))
     def get(self, request):
+        cache_key = "retrieve_job_types"
+        cached_data = get_cached_data(cache_key=cache_key)
+
+        if cached_data:
+            return CustomResponse.success(message="Successfully retrieved all job types", data=cached_data)
+
         job_types = JobType.objects.only('id', 'name')
 
         data = [
@@ -279,6 +304,8 @@ class RetrieveAllJobTypesView(APIView):
             }
             for job_type in job_types
         ]
+
+        set_cached_data(cache_key=cache_key, data=data, timeout=60 * 60 * 24 * 7)
 
         return CustomResponse.success(message="Successfully retrieved all job types", data=data)
 

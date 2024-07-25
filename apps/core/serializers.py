@@ -4,7 +4,7 @@ from django.core import validators
 from django.core.validators import validate_email
 from rest_framework import serializers as sr
 
-from utilities.cache_clear import clear_user_cache
+from utilities.caching import clear_user_cache
 
 User = get_user_model()
 

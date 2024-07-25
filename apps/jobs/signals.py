@@ -2,7 +2,7 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
 from apps.jobs.models import Job, AppliedJob, SavedJob, JobType
-from utilities.cache_clear import clear_cache, clear_user_cache
+from utilities.caching import clear_cache, clear_user_cache
 
 
 @receiver(post_save, sender=Job)
