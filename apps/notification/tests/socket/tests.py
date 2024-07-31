@@ -1,18 +1,19 @@
 import json
-import threading
+import signal
+import sys
 
 import websocket
 
 # Replace this with the WebSocket URL of your Django Channels server
-# User ID - USER TO SEND MESSAGE TO
-# Authenticated User Token
-websocket_url = "ws://127.0.0.1:8000/ws/chat/<user_id>?token=<authenticated_user_token>"
+# USER ID OF AUTHENTICATED USER
+# TOKEN OF AUTHENTICATED USER
+websocket_url = "ws://127.0.0.1:8000/ws/notification/<user_id>?token=<token>"
 
 
 def on_message(ws, message):
     # This function is called whenever a message is received from the server
     data = json.loads(message)
-    print(f"Received message: {data}")
+    print(f"Received notification: {data['message']}")
 
 
 def on_error(ws, error):
@@ -22,31 +23,25 @@ def on_error(ws, error):
 
 def on_close(ws, close_status_code, close_msg):
     # This function is called when the WebSocket connection is closed
-    print("Closed")
+    print("Connection closed")
 
 
 def on_open(ws):
     # This function is called when the WebSocket connection is opened
-    # It starts a new thread to handle user input
-    threading.Thread(target=send_messages, args=(ws,), daemon=True).start()
+    print("WebSocket connection opened. Waiting for notifications...")
 
 
-def send_messages(ws):
-    # This function handles sending messages from user input
-    while True:
-        user_input = input("Type a message (or 'exit' to quit): ")
-        if user_input.lower() == 'exit':
-            ws.close()
-            break
-
-        message_data = {
-            "text": user_input
-        }
-        ws.send(json.dumps(message_data))
+def signal_handler(signal, frame):
+    print("Exiting...")
+    ws.close()
+    sys.exit(0)
 
 
 if __name__ == "__main__":
-    # Connect to the Django Channels WebSocket server
+    # Set up signal handler for graceful exit
+    signal.signal(signal.SIGINT, signal_handler)
+
+    # Create a WebSocketApp instance and run it
     ws = websocket.WebSocketApp(websocket_url,
                                 on_message=on_message,
                                 on_error=on_error,
